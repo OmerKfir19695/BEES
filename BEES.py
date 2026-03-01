@@ -13,13 +13,8 @@ To run BEES from anywhere, add to your PATH (in ~/.bashrc or ~/.zshrc):
 
 Then you can run BEES like this:
 cd ~/BEES
-for linux users:
 ./BEES.py -i ~/BEES/examples/minimal/input.yml 
-for windows users:
-.\BEES.bat -i examples\\minimal\\input.yml 
 
-# Note that some tests are still run good only on linux (for now)
-# More examples can bo fonded on projects folder.
 
 """
 

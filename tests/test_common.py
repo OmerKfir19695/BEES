@@ -5,7 +5,6 @@ Test BEES common module
 This module Test the common module which contains functions which are shared across multiple  modules.
 To run the tests, use pytest and the command line: pytest -v tests/test_common.py
 
-This VERSION based on is the full ARC version, using `semantic versioning <https://semver.org/>`_.
 """
 
 

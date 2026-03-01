@@ -15,11 +15,6 @@ EC Number Classification:
 - EC 6.x.x.x: Ligases (bond formation with ATP)
 - EC 7.x.x.x: Translocases (movement across membranes)
 
-
-#TODO Future possible enhancements:
-- SMARTS-based pattern matching for substrate structure analysis
-- More detailed sub-class templates
-- Cofactor-specific product determination
 """
 
 import logging
