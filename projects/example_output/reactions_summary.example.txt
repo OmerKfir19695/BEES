@@ -1,31 +1,53 @@
-===============================================================================
+================================================================================
 BEES GENERATED REACTIONS SUMMARY
-===============================================================================
+================================================================================
 
-Total Reactions: 1
+Total Reactions: 1 (0 core, 1 edge)
 Project: ExampleProject
 Database: db
 Temperature: 310.0 K
 pH: 7.4
 
-===============================================================================
+================================================================================
+
+COENZYME PARTICIPATION NOTE
+--------------------------------------------------------------------------------
+Energy carriers and redox coenzymes (e.g., ATP, NADH) are treated as
+secondary reactants. They can participate in reaction stoichiometry, but
+they do not trigger new reaction discovery on their own.
+Common coenzymes/cofactors considered in this run: adenosylcobalamin, adp, amp, atp, bicarbonate, ca2+, calcium, carbon dioxide, cdp, cmp, co2, coa, coash, cobalamin, coenzyme a, copper, ctp, cu2+, diphosphate, fad, fadh2, fe2+, fe3+, gdp, gmp, gtp, h+, h2, h2o, h4folate, hco3-, hydrogen, iron, lipoamide, lipoic acid, lipoyl, magnesium, manganese, methylcobalamin, mg2+, mn2+, nad, nad+, nadh, nadh2, nadp, nadp+, nadph, nadph2, o2, orthophosphate, oxygen, phosphate, pi, plp, ppi, proton, pyridoxal 5-phosphate, pyridoxal phosphate, pyrophosphate, s-adenosyl-l-methionine, s-adenosylmethionine, sam, tetrahydrofolate, tetrahydrofolic acid, thf, thiamin pyrophosphate, thiamine pyrophosphate, tpp, udp, ump, utp, vitamin b12, water, zinc, zn2+
+
+================================================================================
+
+REACTION NETWORK SCHEMA
+--------------------------------------------------------------------------------
+This section shows the connectivity of species in the reaction network.
+Species are connected through reactions where products of one reaction
+may be reactants in another.
+
+Total Unique Species in Network: 4
+
+Species Connectivity:
+  ADP:
+    Produced in reaction(s): R1
+  ATP:
+    Consumed in reaction(s): R1
+  D-glucose 6-phosphate:
+    Produced in reaction(s): R1
+  Glucose:
+    Consumed in reaction(s): R1
+
+--------------------------------------------------------------------------------
 
 Reaction 1:
   Enzyme: Hexokinase
+  EC Number: EC 2.7.1.1
   EC Class: TRANSFERASE
   Type: phosphorylation
-  Description: Phosphate group transfer from ATP
-  Equation: Glucose + ATP -> Glucose-6-phosphate + ADP
-  Stoichiometry: {'Glucose': -1, 'ATP': -1, 'Glucose-6-phosphate': 1, 'ADP': 1}
-  Rate Law: Michaelis-Menten
-  Kinetic Parameters (estimated with CatPred):
-    Km = 0.15 mM
-    kcat = 100.0 1/s
-    SD = 0.12
-    Source: catpred
-  Reversible: False
-  Cofactors: ATP, Mg2+
+  Equation: ATP + Glucose → ADP + D-glucose 6-phosphate
+  Stoichiometry: {'ATP': -1, 'Glucose': -1, 'ADP': 1, 'D-glucose 6-phosphate': 1}
+  Rate Law: None
+  Kinetic Parameters:
+    Source: database
+  Cofactors: ATP
 
-===============================================================================
-END OF REACTIONS SUMMARY
-===============================================================================

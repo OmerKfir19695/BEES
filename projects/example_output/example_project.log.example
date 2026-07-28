@@ -1,166 +1,167 @@
-2026-02-04 12:00:00,000 - INFO - ALWAYS: BEES execution initiated on Wed Feb  4 12:00:00 2026
+2026-02-24 12:00:00,000 - INFO - ALWAYS: BEES execution initiated on Tue Feb 24 12:00:00 2026
 
 ################################################################
 #                                                              #
 #       Biochemical Engine for Enzymatic modelS (BEES)         #
 #                                                              #
+#                                                              #
 #       Version:0.1.0                                          #
 #                                                              #
 ################################################################
 
-2026-02-04 12:00:00,001 - INFO - ALWAYS: The current git HEAD for BEES is:
+
+2026-02-24 12:00:00,000 - INFO - ALWAYS: The current git HEAD for BEES is:
     abc123def4567890123456789012345678901234
-    Wed Feb  4 12:00:00 2026 +0000
-2026-02-04 12:00:00,001 - INFO - ALWAYS:     (running on the main branch)
+    Tue Feb 24 12:00:00 2026 +0300
+2026-02-24 12:00:00,000 - INFO - ALWAYS:     (running on the simulation_mini branch)
 
-2026-02-04 12:00:00,001 - INFO - ALWAYS: Starting project ExampleProject
-2026-02-04 12:00:00,001 - INFO - Logger initialized successfully in: /path/to/projects/ExampleProject/output
-2026-02-04 12:00:00,001 - INFO - Console output level: INFO
-2026-02-04 12:00:00,001 - INFO - Main log file: /path/to/projects/ExampleProject/output/ExampleProject.log (level: DEBUG)
-2026-02-04 12:00:00,001 - INFO - Error log file: /path/to/projects/ExampleProject/output/ExampleProject_errors.log (level: ERROR)
-2026-02-04 12:00:00,001 - INFO - Project 'ExampleProject' started at: 2026-02-04 12:00:00
-2026-02-04 12:00:00,001 - INFO - BEES version: 0.1.0
-2026-02-04 12:00:00,002 - INFO - Git branch: main
-2026-02-04 12:00:00,002 - INFO - Git commit: abc123def4567890123456789012345678901234 (Wed Feb  4 12:00:00 2026 +0000)
-2026-02-04 12:00:00,002 - INFO -
+2026-02-24 12:00:00,000 - INFO - ALWAYS: Starting project output
+2026-02-24 12:00:00,000 - INFO - Logger initialized successfully in: /path/to/BEES/projects/example_output/output
+2026-02-24 12:00:00,000 - INFO - Console output level: INFO
+2026-02-24 12:00:00,000 - INFO - Main log file: /path/to/BEES/projects/example_output/output/output.log (level: DEBUG)
+2026-02-24 12:00:00,000 - INFO - Error log file: /path/to/BEES/projects/example_output/output/output_errors.log (level: ERROR)
+2026-02-24 12:00:00,000 - INFO - Project 'output' started at: 2026-04-13 15:59:10
+2026-02-24 12:00:00,000 - INFO - BEES version: 0.1.0
+2026-02-24 12:00:00,000 - INFO - Git branch: simulation_mini
+2026-02-24 12:00:00,000 - INFO - Git commit: abc123def4567890123456789012345678901234 (Tue Feb 24 12:00:00 2026 +0300)
+2026-02-24 12:00:00,000 - DEBUG - 
 
-Using the following arguments:
+Full input arguments:
 
 project: ExampleProject
-project_directory: /path/to/projects/ExampleProject
-species: [{'label': 'Glucose', 'concentration': 1.0, 'observable': True, 'reactive': True}]
-enzymes: [{'label': 'Hexokinase', 'ecnumber': 'EC 2.7.1.1', 'concentration': 1e-06, 'reactive': True, 'amino_acid_sequence': 'MIAA...'}]
+project_directory: /path/to/BEES/projects/example_output
+species: [{'label': 'Glucose', 'concentration': 1.0, 'reactive': True, 'observable': True}, {'label': 'ATP', 'concentration': 2.0, 'reactive': False, 'observable': True}, {'label': 'ADP', 'concentration': 1e-12, 'reactive': False, 'observable': True}, {'label': 'Glucose-6-phosphate', 'concentration': 1e-12, 'reactive': True, 'observable': True}, {'label': 'Mg2+', 'concentration': 1.0, 'reactive': False, 'observable': False}]
+enzymes: [{'label': 'Hexokinase', 'concentration': 0.001, 'ecnumber': 'EC 2.7.1.1', 'reactive': True}]
 environment:
   temperature: 310.0
   pH: 7.4
 database:
   name: db
 settings:
-  estimate_kinetics: true
-  kinetics_estimator: catpred
-  kinetics_include_sd: true
+  end_time: 1.0
+  time_step: 0.5
+  toleranceMoveToCore: 0.1
+  toleranceKeepInEdge: 0.0
+  max_iterations: 1
+  estimate_kinetics: False
   verbose: 20
+  save_simulation_profiles: False
+  save_simulation_plots: False
+  save_reaction_tree_plots: False
+  save_ode_equations: True
+  output_directory: /path/to/BEES/projects/example_output/output
+verbose: info
 
-2026-02-04 12:00:00,010 - INFO - Input validated successfully against the schema.
-2026-02-04 12:00:00,011 - INFO - Saving validated input to /path/to/projects/ExampleProject/output/input.yml
-2026-02-04 12:00:00,011 - INFO - BEES project ExampleProject initialized successfully in 00:00:00.
+2026-02-24 12:00:00,000 - INFO - Loaded chemical ontology from /path/to/BEES/db/ontology.yaml (205 aliases)
+2026-02-24 12:00:00,000 - INFO - Input validated successfully against the schema.
+2026-02-24 12:00:00,000 - INFO - Saving validated input to /path/to/BEES/projects/example_output/output/input.yml
+2026-02-24 12:00:00,000 - INFO - BEES project ExampleProject initialized successfully in 00:00:00.
+2026-02-24 12:00:00,000 - INFO - Starting BEES execution for project 'ExampleProject'...
+2026-02-24 12:00:00,000 - INFO - Input: 2 reactive species, 3 cofactors, 1 enzymes
+2026-02-24 12:00:00,000 - INFO - Environment: T=310.0 K, pH=7.4
+2026-02-24 12:00:00,000 - INFO - Database: 'db'
+2026-02-24 12:00:00,000 - DEBUG - Kinetics estimation: disabled
+2026-02-24 12:00:00,000 - INFO - The simulation will run until 1.0 time units.
+2026-02-24 12:00:00,000 - INFO - Loading kinetic database from /path/to/BEES/db/db.csv
+2026-02-24 12:00:00,000 - DEBUG - Row 4936: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 14389: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 14600: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 15927: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 15928: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 15929: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 15930: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 21826: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 21839: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 22480: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 30309: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 30588: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 30589: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32245: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32246: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32247: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32248: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32249: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32250: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32251: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32252: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32253: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32254: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32255: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32256: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32257: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32258: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32259: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32260: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32261: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32262: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32263: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32264: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32265: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32266: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32267: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32268: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32269: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32270: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32271: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32272: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32273: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 32513: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - DEBUG - Row 36434: No valid stoichiometry found.
+2026-02-24 12:00:00,000 - INFO - Loaded 37141 reactions from /path/to/BEES/db/db.csv
+2026-02-24 12:00:00,000 - INFO - Database loaded: 37141 reactions, 7834 unique enzymes, 19588 unique substrates
+2026-02-24 12:00:00,000 - DEBUG -   - Reactions with Km: 0
+2026-02-24 12:00:00,000 - DEBUG -   - Reactions with kcat: 0
+2026-02-24 12:00:00,000 - DEBUG -   - Reactions with ΔG: 0
+2026-02-24 12:00:00,000 - INFO - Mode: Rate-based iterative enlargement
+2026-02-24 12:00:00,000 - INFO - ============================================================
+2026-02-24 12:00:00,000 - INFO - RATE-BASED ITERATIVE MODEL ENLARGEMENT
+2026-02-24 12:00:00,000 - INFO - ============================================================
+2026-02-24 12:00:00,000 - DEBUG - Generating reactions for: Glucose + Hexokinase (EC 2.7.1.1)
+2026-02-24 12:00:00,000 - DEBUG - Querying database: EC=EC 2.7.1.1, Substrate=Glucose, Cofactor=None, TempRange=(294.5, 325.5), pHRange=(6.9, 7.9)
+2026-02-24 12:00:00,000 - DEBUG - Substrate 'Glucose' equivalents: ['glucose', 'D-glucose', 'alpha-d-glucose', 'beta-d-glucose', 'd-glucopyranose']
+2026-02-24 12:00:00,000 - DEBUG - Inferred products for Glucose + Hexokinase: ['Glucose-phosphate', 'ADP']
+2026-02-24 12:00:00,000 - DEBUG - Created reaction template: ReactionTemplate(type=phosphorylation, class=TRANSFERASE, reactants=['Glucose', 'ATP'] → products=['Glucose-phosphate', 'ADP'])
+2026-02-24 12:00:00,000 - DEBUG - Inferred products for Glucose + Hexokinase: ['Glucose-phosphate', 'ADP']
+2026-02-24 12:00:00,000 - DEBUG - Created reaction template: ReactionTemplate(type=phosphorylation, class=TRANSFERASE, reactants=['Glucose', 'ATP'] → products=['Glucose-phosphate', 'ADP'])
+2026-02-24 12:00:00,000 - DEBUG - Inferred products for Glucose + Hexokinase: ['Glucose-phosphate', 'ADP']
+2026-02-24 12:00:00,000 - DEBUG - Created reaction template: ReactionTemplate(type=phosphorylation, class=TRANSFERASE, reactants=['Glucose', 'ATP'] → products=['Glucose-phosphate', 'ADP'])
+2026-02-24 12:00:00,000 - DEBUG - Inferred products for Glucose + Hexokinase: ['Glucose-phosphate', 'ADP']
+2026-02-24 12:00:00,000 - DEBUG - Created reaction template: ReactionTemplate(type=phosphorylation, class=TRANSFERASE, reactants=['Glucose', 'ATP'] → products=['Glucose-phosphate', 'ADP'])
+2026-02-24 12:00:00,000 - DEBUG -   Atom-balance check skipped (missing SMILES) for Glucose / Hexokinase
+2026-02-24 12:00:00,000 - DEBUG - Generating reactions for: Glucose-6-phosphate + Hexokinase (EC 2.7.1.1)
+2026-02-24 12:00:00,000 - DEBUG - Querying database: EC=EC 2.7.1.1, Substrate=Glucose-6-phosphate, Cofactor=None, TempRange=(294.5, 325.5), pHRange=(6.9, 7.9)
+2026-02-24 12:00:00,000 - DEBUG - Substrate 'Glucose-6-phosphate' equivalents: ['glucose-6-phosphate']
+2026-02-24 12:00:00,000 - INFO - Initial discovery: 2 reaction(s) for 2 input species.
+2026-02-24 12:00:00,000 - INFO - Initial model: {'core_species': 6, 'edge_species': 1, 'core_reactions': 0, 'edge_reactions': 1}
+2026-02-24 12:00:00,000 - INFO - --- Enlargement iteration 1 ---
+2026-02-24 12:00:00,000 - DEBUG - Running ODE simulation (stepwise): 7 species, 1 reactions, t=[0, 1.0] s, tol_interrupt=0.1
+2026-02-24 12:00:00,000 - DEBUG - Stepwise heartbeat interval: 30.0 s
+2026-02-24 12:00:00,000 - DEBUG - ODE simulation completed (stepwise) (28 time points)
+2026-02-24 12:00:00,000 - INFO - Exported ODE equations to /path/to/BEES/projects/example_output/output/ode_equations_iter1.txt
+2026-02-24 12:00:00,000 - INFO -   R_char at t_end = 0.000000e+00 mM/s  |  R_char peak (this run) = 0.000000e+00 mM/s
+2026-02-24 12:00:00,000 - INFO - Simulation reached end_time without exceeding toleranceInterruptSimulation.
+2026-02-24 12:00:00,000 - INFO -   Model status: {'core_species': 6, 'edge_species': 1, 'core_reactions': 0, 'edge_reactions': 1}
+2026-02-24 12:00:00,000 - INFO - ============================================================
+2026-02-24 12:00:00,000 - INFO - ENLARGEMENT SUMMARY
+2026-02-24 12:00:00,000 - INFO -   Iterations:      1
+2026-02-24 12:00:00,000 - INFO -   Converged:       True
+2026-02-24 12:00:00,000 - INFO -   Reason:          Simulation reached end_time without exceeding toleranceInterruptSimulation.
+2026-02-24 12:00:00,000 - INFO -   Core species:    6
+2026-02-24 12:00:00,000 - INFO -   Edge species:    1
+2026-02-24 12:00:00,000 - INFO -   Core reactions:  0
+2026-02-24 12:00:00,000 - INFO - ============================================================
+2026-02-24 12:00:00,000 - INFO - Exported reactions summary to /path/to/BEES/projects/example_output/output/reactions_summary.txt
+2026-02-24 12:00:00,000 - INFO - Exported reaction summary to: /path/to/BEES/projects/example_output/output/reactions_summary.txt
+2026-02-24 12:00:00,000 - INFO - Exported flux analysis to /path/to/BEES/projects/example_output/output/flux_analysis.csv
+2026-02-24 12:00:00,000 - INFO - Exported reaction flux summary to /path/to/BEES/projects/example_output/output/flux_analysis_reactions.csv
+2026-02-24 12:00:00,000 - INFO - Exported core reactions/species CSV to /path/to/BEES/projects/example_output/output/core_reactions_species.csv
+2026-02-24 12:00:00,000 - INFO - Exported edge reactions/species CSV to /path/to/BEES/projects/example_output/output/edge_reactions_species.csv
+2026-02-24 12:00:00,000 - INFO - BEES execution for project 'ExampleProject' completed in 00:00:13.
+2026-02-24 12:00:00,000 - INFO - ALWAYS: Main log file size: 12.14 KiB (12434 bytes)  |  /path/to/BEES/projects/example_output/output/output.log
+2026-02-24 12:00:00,000 - INFO - ALWAYS: 
 
-2026-02-04 12:00:00,011 - INFO - Starting BEES execution for project 'ExampleProject'...
-2026-02-04 12:00:00,011 - INFO - Input has 1 species and 1 enzymes.
-2026-02-04 12:00:00,011 - INFO - Environment Temperature: 310.0 K
-2026-02-04 12:00:00,011 - INFO - Database name: 'db'. No specific rate law defined.
-2026-02-04 12:00:00,011 - INFO - No specific parameter estimator defined for database 'db'.
-2026-02-04 12:00:00,011 - INFO - No simulation end time specified (reaction network generation only).
 
-2026-02-04 12:00:00,011 - INFO -
-2026-02-04 12:00:00,011 - INFO - ============================================================
-2026-02-04 12:00:00,011 - INFO - STARTING MODEL GENERATION
-2026-02-04 12:00:00,011 - INFO - ============================================================
-2026-02-04 12:00:00,012 - INFO - Loading kinetic database from /path/to/db/db.csv
-2026-02-04 12:00:00,050 - INFO - Loaded 171 kinetic reactions from /path/to/db/db.csv
-2026-02-04 12:00:00,050 - INFO - Database loaded: 171 reactions, 171 unique enzymes, 171 unique substrates
-2026-02-04 12:00:00,050 - INFO -   - Reactions with Km: 171
-2026-02-04 12:00:00,050 - INFO -   - Reactions with kcat: 171
-
-2026-02-04 12:00:00,050 - INFO - ============================================================
-2026-02-04 12:00:00,050 - INFO - REACTION GENERATION
-2026-02-04 12:00:00,050 - INFO - ============================================================
-2026-02-04 12:00:00,050 - INFO - Found 1 reactive substrate(s) and 1 reactive enzyme(s)
-2026-02-04 12:00:00,050 - INFO - Generating reactions for 1 enzyme-substrate pair(s)...
-2026-02-04 12:00:00,050 - INFO -
-2026-02-04 12:00:00,051 - INFO -   [1] Reaction: Glucose + ATP -> Glucose-6-phosphate + ADP
-2026-02-04 12:00:00,051 - INFO -       |- Database match: Km=0.15 mM, kcat=100.0 1/s
-2026-02-04 12:00:00,051 - INFO -       |- Kinetics estimated with CatPred (SD included)
-2026-02-04 12:00:00,051 - INFO -
-2026-02-04 12:00:00,051 - INFO - Generated 1 total reaction(s)
-2025-11-27 12:00:00,000 - INFO - ALWAYS: BEES execution initiated on Wed Nov 27 12:00:00 2025
-
-################################################################
-#                                                              #
-#       Biochemical Engine for Enzymatic modelS (BEES)         #
-#                                                              #
-#                                                              #
-#       Version:0.1.0                                          #
-#                                                              #
-################################################################
-
-
-2025-11-27 12:00:00,001 - INFO - ALWAYS: The current git HEAD for BEES is:
-    abc123def4567890123456789012345678901234
-    Wed Nov 27 12:00:00 2025 +0000
-2025-11-27 12:00:00,001 - INFO - ALWAYS:     (running on the main branch)
-
-2025-11-27 12:00:00,001 - INFO - ALWAYS: Starting project ExampleProject
-2025-11-27 12:00:00,001 - INFO - Logger initialized successfully in: /path/to/output/ExampleProject
-2025-11-27 12:00:00,001 - INFO - Console output level: INFO
-2025-11-27 12:00:00,001 - INFO - Main log file: /path/to/output/ExampleProject/ExampleProject.log (level: DEBUG)
-2025-11-27 12:00:00,001 - INFO - Error log file: /path/to/output/ExampleProject/ExampleProject_errors.log (level: ERROR)
-2025-11-27 12:00:00,001 - INFO - Project 'ExampleProject' started at: 2025-11-27 12:00:00
-2025-11-27 12:00:00,001 - INFO - BEES version: 0.1.0
-2025-11-27 12:00:00,002 - INFO - Git branch: main
-2025-11-27 12:00:00,002 - INFO - Git commit: abc123def4567890123456789012345678901234 (Wed Nov 27 12:00:00 2025 +0000)
-2025-11-27 12:00:00,002 - INFO - 
-
-Using the following arguments:
-
-project: ExampleProject
-species: [{'label': 'Glucose', 'concentration': 1.0, 'observable': True, 'reactive': True}]
-enzymes: [{'label': 'Hexokinase', 'ecnumber': 'EC 1.1.1.1', 'concentration': 1e-06, 'reactive': True}]
-environment:
-  temperature: 310.0
-  pH: 7.4
-database:
-  name: ExampleDB
-  kinetics_estimator: rate rules
-  solver: odeint
-settings:
-  end_time: 100.0
-  time_step: 0.1
-  verbose: 20
-
-2025-11-27 12:00:00,010 - INFO - Input validated successfully against the schema.
-2025-11-27 12:00:00,011 - INFO - Saving validated input to /path/to/output/ExampleProject/input.yml
-2025-11-27 12:00:00,011 - INFO - BEES project ExampleProject initialized successfully in 00:00:00.
-
-2025-11-27 12:00:00,011 - INFO - Starting BEES execution for project 'ExampleProject'...
-2025-11-27 12:00:00,011 - INFO - Input has 1 species and 1 enzymes.
-2025-11-27 12:00:00,011 - INFO - Environment Temperature: 310.0 K
-2025-11-27 12:00:00,011 - INFO - Database name: 'ExampleDB'. No specific rate law defined.
-2025-11-27 12:00:00,011 - INFO - No specific parameter estimator defined for database 'ExampleDB'.
-2025-11-27 12:00:00,011 - INFO - The simulation will run until 100.0 time units.
-2025-11-27 12:00:00,011 - INFO - Using solver: odeint
-
-2025-11-27 12:00:00,011 - INFO - 
-2025-11-27 12:00:00,011 - INFO - ============================================================
-2025-11-27 12:00:00,011 - INFO - STARTING MODEL GENERATION
-2025-11-27 12:00:00,011 - INFO - ============================================================
-2025-11-27 12:00:00,012 - INFO - Loading kinetic database from /path/to/db/db.csv
-2025-11-27 12:00:00,050 - INFO - Loaded 17 kinetic reactions from /path/to/db/db.csv
-2025-11-27 12:00:00,050 - INFO - Database loaded: 17 reactions, 17 unique enzymes, 17 unique substrates
-2025-11-27 12:00:00,050 - INFO -   - Reactions with Km: 17
-2025-11-27 12:00:00,050 - INFO -   - Reactions with kcat: 17
-2025-11-27 12:00:00,050 - INFO -   - Reactions with ΔG: 17
-
-2025-11-27 12:00:00,050 - INFO - ============================================================
-2025-11-27 12:00:00,050 - INFO - REACTION GENERATION
-2025-11-27 12:00:00,050 - INFO - ============================================================
-2025-11-27 12:00:00,050 - INFO - Found 1 reactive substrate(s) and 1 reactive enzyme(s)
-2025-11-27 12:00:00,050 - INFO - Generating reactions for 1 enzyme-substrate pair(s)...
-2025-11-27 12:00:00,050 - INFO - 
-2025-11-27 12:00:00,051 - INFO -   [1] Reaction: Glucose + ATP → Glucose-6-phosphate + ADP
-2025-11-27 12:00:00,051 - INFO -       ├─ Database match: Km=0.15 mM, kcat=100.0 1/s
-2025-11-27 12:00:00,051 - INFO -       └─ Type: oxidation_CH-OH (OXIDOREDUCTASE)
-
-2025-11-27 12:00:00,051 - INFO - 
-2025-11-27 12:00:00,051 - INFO - Generated 1 total reaction(s)
-2025-11-27 12:00:00,051 - INFO - 
-2025-11-27 12:00:00,051 - INFO - ✓ Successfully generated 1 reaction(s)
-2025-11-27 12:00:00,052 - INFO - ✓ Exported reaction summary to: /path/to/output/ExampleProject/reactions_summary.txt
-
-2025-11-27 12:00:00,052 - INFO - 
-2025-11-27 12:00:00,052 - INFO - BEES execution for project 'ExampleProject' completed in 00:00:00.
-2025-11-27 12:00:00,052 - INFO - ============================================================
-2025-11-27 12:00:00,052 - INFO - BEES execution completed successfully
-2025-11-27 12:00:00,052 - INFO - ============================================================
-
+Total BEES execution time: 00:00:13
+2026-02-24 12:00:00,000 - INFO - ALWAYS: BEES execution completed successfully.
+2026-02-24 12:00:00,000 - INFO - ALWAYS: BEES execution terminated on Tue Feb 24 12:00:00 2026
 
