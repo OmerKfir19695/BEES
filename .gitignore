@@ -1,5 +1,3 @@
-# install.sh: generated env (CatPred lives in parent dir, ARC-style)
-.env.bees
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -29,12 +27,6 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
-
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
@@ -54,78 +46,13 @@ coverage.xml
 .pytest_cache/
 cover/
 
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-.pybuilder/
-target/
-
 # Jupyter Notebook
-.ipynb_checkpoints
+.ipynb_checkpoints/
 
 # IPython
 profile_default/
 ipython_config.py
 
-# pyenv
-#   For a library or package, you might want to ignore these files since the code is
-#   intended to run in multiple environments; otherwise, check them in:
-# .python-version
-
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
-
-# UV
-#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#uv.lock
-
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-#poetry.lock
-
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
-#pdm.lock
-#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
-#   in version control.
-#   https://pdm.fming.dev/latest/usage/project/#working-with-version-control
-.pdm.toml
-.pdm-python
-.pdm-build/
-
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
 
 # SageMath parsed files
 *.sage.py
@@ -143,11 +70,8 @@ venv.bak/
 .spyderproject
 .spyproject
 
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
+#---gstack---
+.gstack/
 
 # mypy
 .mypy_cache/
@@ -163,51 +87,58 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+# BEES generated outputs
+/**/output/
+scratch/**/output/
 
-# Ruff stuff:
-.ruff_cache/
 
-# PyPI configuration file
-.pypirc
-
-# PyCharm
-.idea
-
-# BEES Project Specific Outputs
-# Keep test input files and summary, but ignore generated results
-# Keep: input.yml files, TEST_PROJECTS_SUMMARY.md
-# Ignore: log files, reactions_summary.txt, error files
-
-# In projects/ directory: keep structure and input.yml, ignore results
-projects/*/reactions_summary.txt
-projects/*/*.log
-projects/*/*_errors.log
-projects/*/log_archive/
-
-# In examples/ directory: keep input.yml files, ignore generated output files
-# But DO track example_output/ directory which shows what output should look like
-examples/*/reactions_summary.txt
-examples/*/*.log
-examples/*/*_errors.log
-examples/*/log_archive/
-# Exception: keep example_output directory to show users what output looks like
-!examples/example_output/
-
-# BEES Test Files (temporary/generated in root directory)
-test_first_time_user.yml
-test_programmatic_access.py
-
-# BEES Documentation (generated - comment out if you want to track them)
-IMPROVEMENTS.md
-TESTING_GUIDE.md
-TEST_SETUP_COMPLETE.md
-
-# BEES Output Files (general)
+# BEES output files (general)
 *.log
 *_errors.log
+
+# AI IDE files
+.cursor/
+.claude/
+CLAUDE.md
+
+# Temporary files
+.tmp/
+.env.bees
+.ruff_cache/
+
+# LibreOffice lock files for CSVs
+.~lock.*.csv#
+
+#banchmarking files
+ecmdb.json
+A kinetic rationale for functional redundancy in fatty acid biosynthesis/
+
+# reusable code
+scripts/
+
+#---  in workprojects ---
+projects/In_work/
+
+#experimental data
+projects/Glycolysis/experimental/
+
+# Glycolysis validation outputs (generated)
+projects/Glycolysis/ecoli/output_validate/
+projects/Glycolysis/ecoli/output_validate_mM/
+
+# --- Personal analysis / comparison scripts (not part of the repo) ---
+projects/Glycolysis/ecoli/compare_to_chassagnole.py
+projects/Glycolysis/ecoli/plot_kinetic_params.py
+
+# --- Generated figures ---
+BEES_equations.pdf
+projects/Glycolysis/ecoli/*.pdf
+projects/Glycolysis/ecoli/*.png
+projects/fattyAcidSynthesis/fattyAcidSynthesis_ecoli/*.pdf
+projects/fattyAcidSynthesis/fattyAcidSynthesis_ecoli/*.png
+
+# --- Konwledge---
+knowledge
+
+# --- docs ---
+docs

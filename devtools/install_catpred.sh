@@ -102,6 +102,10 @@ fi
 echo "Installing CatPred package in env catpred..."
 (cd "${CATPRED_REPO}" && $COMMAND_PKG run -n catpred pip install -e . -q)
 
+# Resolve the catpred env's Python path and conda binary for .env.bees
+CATPRED_PYTHON_PATH=$($COMMAND_PKG run -n catpred python -c "import sys; print(sys.executable)" 2>/dev/null || true)
+CONDA_BIN_PATH=$(command -v "$COMMAND_PKG")
+
 # Env file for BEES
 ENV_FILE="${REPO_ROOT}/.env.bees"
 cat > "${ENV_FILE}" << EOF
@@ -109,6 +113,8 @@ cat > "${ENV_FILE}" << EOF
 export CATPRED_DIR="${CATPRED_REPO}"
 export CATPRED_CHECKPOINT_BASE="${CHECKPOINT_BASE}"
 export CATPRED_CONDA_ENV=catpred
+export CATPRED_CONDA_BIN="${CONDA_BIN_PATH}"
+export CATPRED_PYTHON="${CATPRED_PYTHON_PATH}"
 EOF
 echo "Wrote ${ENV_FILE}"
 echo "CatPred install complete. CATPRED_CHECKPOINT_BASE=${CHECKPOINT_BASE}"

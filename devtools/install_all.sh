@@ -36,7 +36,7 @@ echo "BEES repo root: $REPO_ROOT"
 echo "=== Installing BEES ==="
 run_devtool install_bees.sh
 
-# 2) CatPred (optional, for kinetics estimation)
+# 2) CatPred (optional, needed for kinetics estimation)
 if [[ "$SKIP_CATPRED" == false ]]; then
   echo "=== Installing CatPred ==="
   run_devtool install_catpred.sh
