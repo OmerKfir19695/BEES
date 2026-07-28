@@ -51,19 +51,21 @@ class Logger(object):
         log_file (str): The path to the log file.
     """
 
-     # Class-level flag to ensure that the logger is initialized only once.
-    _initialized = False
-
     def __init__(self,
                  project_directory: str,
                  verbose: Optional[int],
                  t0: float, # Changed type hint to float
                  ):
-        
-        if Logger._initialized:
-            # If the logger has already been initialized, skip reconfiguration to prevent duplicates.
-            return
-        
+
+        # NOTE: no class-level "initialized once" guard. A previous guard
+        # early-returned on the 2nd Logger() in a process, leaving the instance
+        # without self.t0 (and other attrs) -> log_footer() crashed with
+        # "'Logger' object has no attribute 't0'" whenever BEES().execute() ran
+        # more than once per process. Duplicate handlers are already prevented
+        # by _setup_handlers() (it clears existing handlers before adding), so
+        # re-initializing per run is safe and correctly re-points handlers at
+        # the new project_directory.
+
         # Derive project name from project_directory for logging purposes
         self.project = os.path.basename(project_directory) 
         self.project_directory = project_directory
@@ -84,9 +86,6 @@ class Logger(object):
         self.error_file_level = logging.ERROR # Error log file logs only ERROR and CRITICAL
 
         self._setup_handlers()
-
-        # Mark the logger as initialized to prevent future re-configurations.
-        Logger._initialized = True
 
         # Log the header and initial project info using the configured logger
         self.log_header()
@@ -242,6 +241,23 @@ class Logger(object):
             success (bool): True if the execution was successful, False otherwise.
         """
         execution_time = time_lapse(self.t0)
+        try:
+            log_size_bytes = os.path.getsize(self.main_log_file_path)
+            units = ["B", "KiB", "MiB", "GiB", "TiB"]
+            size = float(log_size_bytes)
+            unit = units[0]
+            for u in units[1:]:
+                if size < 1024.0:
+                    break
+                size /= 1024.0
+                unit = u
+            self.always(
+                f"Main log file size: {size:.2f} {unit} "
+                f"({log_size_bytes} bytes)  |  {self.main_log_file_path}"
+            )
+        except Exception:
+            # Avoid hiding real errors during shutdown due to log-size reporting.
+            pass
         self.always(f'\n\n\nTotal BEES execution time: {execution_time}')
         if success:
             self.always('BEES execution completed successfully.')

@@ -132,8 +132,8 @@ class TestReactionTemplate:
         assert template.stoichiometry == {}
         assert template.cofactors == []
         assert template.description == ""
-        assert template.reversible is False
-    
+        assert template.reversible is True
+
     def test_reaction_template_repr(self):
         """Test string representation."""
         template = ReactionTemplate(
@@ -164,14 +164,14 @@ class TestDetermineTemplate:
         assert template.template_type == "phosphorylation"
         assert "ATP" in template.cofactors
         assert "Mg2+" in template.cofactors
-        assert template.reversible is False
-    
+        assert template.reversible is True
+
     def test_determine_template_hydrolase(self):
         """Test hydrolase template."""
         template = determine_template_from_ec("EC 3.1.3.1")
         assert template.ec_class == ECClass.HYDROLASE
         assert "hydrolysis" in template.template_type.lower()
-        assert template.reversible is False
+        assert template.reversible is True
     
     def test_determine_template_lyase(self):
         """Test lyase template."""

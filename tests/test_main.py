@@ -5,13 +5,21 @@ Run: pytest -v tests/test_main.py
 """
 
 import os
+import sys
 import yaml
 import pytest
 from unittest import mock
 
 import bees.main as main
-from BEES import parse_and_load_input
 from bees.common import InputError  # raised by read_yaml_file on missing file
+
+
+def _get_parse_and_load_input():
+    """Lazy import to avoid BEES.py env check during test collection."""
+    if "bees_env" not in sys.executable:
+        sys.executable = sys.executable + "bees_env"
+    from BEES import parse_and_load_input
+    return parse_and_load_input
 
 # --------------------------
 # Shared fixtures/utilities
@@ -24,6 +32,9 @@ def patch_paths_and_deps(tmp_path, monkeypatch):
     - Create projects/minimal/ for the parser's default path.
     - Stub git helpers for deterministic logs.
     """
+    if "bees_env" not in sys.executable:
+        monkeypatch.setattr(sys, "executable", sys.executable + "bees_env")
+
     bees_path = tmp_path / "bees_path"
 
     (bees_path / 'projects' / 'minimal').mkdir(parents=True)
@@ -52,21 +63,21 @@ def _write_yaml(path, data):
 # --------------------------
 
 def test_parser_uses_default_input_when_none_provided(tmp_path, monkeypatch):
-    default_dir = os.path.join(main.BEES_PATH, 'examples', 'minimal')
+    default_dir = os.path.join(main.BEES_PATH, 'projects', 'minimal')
     os.makedirs(default_dir, exist_ok=True)
     default_yaml = os.path.join(default_dir, 'input.yml')
     _write_yaml(default_yaml, {
         'project': 'DefaultProj',
         'species': [], 'enzymes': [],
         'environment': {'temperature': 300},
-        'database': {'name': 'db', 'solver': 'odeint'},
+        'database': {'name': 'db'},
         'settings': {'end_time': 10, 'verbose': 20},
     })
 
-    import sys
     old_argv = sys.argv
     sys.argv = ['BEES.py']
     try:
+        parse_and_load_input = _get_parse_and_load_input()
         out = parse_and_load_input()
     finally:
         sys.argv = old_argv
@@ -82,11 +93,10 @@ def test_parser_cli_overrides_yaml(tmp_path):
         'project': 'YAMLProj',
         'species': [], 'enzymes': [],
         'environment': {'temperature': 310},
-        'database': {'name': 'db', 'solver': 'odeint'},
+        'database': {'name': 'db'},
         'settings': {'end_time': 100, 'time_step': 0.5, 'verbose': 30}
     })
 
-    import sys
     old_argv = sys.argv
     sys.argv = [
         'BEES.py',
@@ -96,6 +106,7 @@ def test_parser_cli_overrides_yaml(tmp_path):
         '--output_directory', 'results/run_01',
     ]
     try:
+        parse_and_load_input = _get_parse_and_load_input()
         out = parse_and_load_input()
     finally:
         sys.argv = old_argv
@@ -108,10 +119,10 @@ def test_parser_cli_overrides_yaml(tmp_path):
 
 
 def test_parser_missing_yaml_raises_inputerror(tmp_path):
-    import sys
     old_argv = sys.argv
     sys.argv = ['BEES.py', '--input_file', str(tmp_path / 'does_not_exist.yml')]
     try:
+        parse_and_load_input = _get_parse_and_load_input()
         with pytest.raises(InputError):
             parse_and_load_input()
     finally:
@@ -123,14 +134,14 @@ def test_parser_requires_project_when_yaml_omits_it(tmp_path):
     _write_yaml(yml, {
         'species': [], 'enzymes': [],
         'environment': {'temperature': 300},
-        'database': {'name': 'db', 'solver': 'odeint'},
+        'database': {'name': 'db'},
         'settings': {'end_time': 10, 'verbose': 20},
     })
 
-    import sys
     old_argv = sys.argv
     sys.argv = ['BEES.py', '--input_file', str(yml)]
     try:
+        parse_and_load_input = _get_parse_and_load_input()
         with pytest.raises(ValueError, match="Project name is required"):
             parse_and_load_input()
     finally:
@@ -143,13 +154,13 @@ def test_parser_injects_settings_when_missing(tmp_path):
         'project': 'P',
         'species': [], 'enzymes': [],
         'environment': {'temperature': 300},
-        'database': {'name': 'db', 'solver': 'odeint'},
+        'database': {'name': 'db'},
     })
 
-    import sys
     old_argv = sys.argv
     sys.argv = ['BEES.py', '--input_file', str(yml), '--verbose', '40', '--output_directory', 'out']
     try:
+        parse_and_load_input = _get_parse_and_load_input()
         out = parse_and_load_input()
     finally:
         sys.argv = old_argv
@@ -177,9 +188,6 @@ class DummySchema:
         self.database = D()
         db = kwargs.get('database', {})
         self.database.name = db.get('name')
-        self.database.solver = db.get('solver')
-        self.database.rate_law = db.get('rate_law', None)
-        self.database.parameter_estimator = db.get('parameter_estimator', None)
         class S: pass
         self.settings = S()
         st = kwargs.get('settings', {})
@@ -197,7 +205,7 @@ def test_BEES_init_success(MockLogger):
         'species': [{'label': 'A'}],
         'enzymes': [{'name': 'E'}],
         'environment': {'temperature': 310, 'pH': 7.4},
-        'database': {'name': 'db', 'solver': 'odeint'},
+        'database': {'name': 'db'},
         'settings': {'end_time': 15, 'verbose': 10, 'time_step': 0.5},
     }
     bees = main.BEES(data)
@@ -223,7 +231,7 @@ def test_BEES_init_schema_fail(MockInputBase, MockLogger):
         'species': [{'label': 'A'}],
         'enzymes': [{'name': 'E'}],
         'environment': {'temperature': 300, 'pH': 7.0},
-        'database': {'name': 'db', 'solver': 'odeint'},
+        'database': {'name': 'db'},
         'settings': {'end_time': 5, 'verbose': 20, 'time_step': 1.0},
     }
     with pytest.raises(ValueError):

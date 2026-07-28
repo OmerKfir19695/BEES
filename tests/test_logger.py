@@ -5,7 +5,6 @@ Test BEES logger module
 This module Test the logger module .
 To run the tests, use pytest and the command line: pytest -v tests/test_logger.py
 
-This VERSION based on is the full ARC version, using `semantic versioning <https://semver.org/>`_.
 """
 
 
@@ -23,10 +22,7 @@ def reset_logger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """
     Reset the Logger singleton and the global 'BEES' logger before each test.
     """
-    # 1) reset the flag so __init__ will reconfigure once
-    Logger._initialized = False
-
-    # 2) remove any existing handlers from the module-level logger
+    # 1) remove any existing handlers from the module-level logger
     for handler in list(global_logger.handlers):
         global_logger.removeHandler(handler)
     global_logger.setLevel(logging.NOTSET)
@@ -49,21 +45,23 @@ def tmp_dir(tmp_path: Path):
     return str(d)
 
 
-def test_singleton_does_not_add_handlers(tmp_dir: str):
-    # First init: should create exactly 3 handlers
-    logger1 = Logger(project_directory=tmp_dir, verbose=logging.INFO, t0=time.time())
-    assert Logger._initialized is True
+def test_reinit_does_not_accumulate_handlers_and_sets_t0(tmp_path: Path):
+    # First init: should create exactly 3 handlers (console + main file + error file)
+    d1 = tmp_path / "p1"; d1.mkdir()
+    d2 = tmp_path / "p2"; d2.mkdir()
+    logger1 = Logger(project_directory=str(d1), verbose=logging.INFO, t0=time.time())
     assert len(global_logger.handlers) == 3
+    assert hasattr(logger1, "t0")
 
-    # Capture how many handlers we have now
-    before = len(global_logger.handlers)
+    # Second init in the same process: must NOT accumulate handlers (_setup_handlers
+    # clears them first), and MUST fully initialize. Regression: a previous
+    # class-level guard early-returned here, leaving the instance without self.t0
+    # so log_footer() crashed with "'Logger' object has no attribute 't0'" whenever
+    # BEES().execute() ran more than once per process.
+    logger2 = Logger(project_directory=str(d2), verbose=logging.DEBUG, t0=time.time())
+    assert len(global_logger.handlers) == 3   # no duplicate accumulation
+    assert hasattr(logger2, "t0")             # fully initialized on re-init
 
-    # Second init: should early-return and NOT add more handlers
-    logger2 = Logger(project_directory="/some/other/dir", verbose=logging.DEBUG, t0=time.time())
-    assert Logger._initialized is True
-    assert len(global_logger.handlers) == before
-
-    # Both should be Logger instances
     assert isinstance(logger1, Logger)
     assert isinstance(logger2, Logger)
 
@@ -169,8 +167,7 @@ def test_file_backup(tmp_dir: str):
     with open(err_log, "w") as f:
         f.write("OLD_ERR")
 
-    # reset singleton & handlers
-    Logger._initialized = False
+    # reset handlers
     for handler in list(global_logger.handlers):
         global_logger.removeHandler(handler)
     global_logger.setLevel(logging.NOTSET)
