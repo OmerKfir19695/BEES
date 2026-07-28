@@ -1,0 +1,1962 @@
+Theoretical Biology and Medical
+Modelling
+
+BioMed Central
+
+Research
+
+Open Access
+
+Bringing metabolic networks to life: convenience rate law and
+thermodynamic constraints
+Wolfram Liebermeister* and Edda Klipp
+Address: Computational Systems Biology, Max Planck Institute for Molecular Genetics, Ihnestraße 63-73, 14195 Berlin, Germany
+Email: Wolfram Liebermeister* - lieberme@molgen.mpg.de; Edda Klipp - klipp@molgen.mpg.de
+* Corresponding author
+
+Published: 15 December 2006
+Theoretical Biology and Medical Modelling 2006, 3:41
+
+doi:10.1186/1742-4682-3-41
+
+Received: 26 June 2006
+Accepted: 15 December 2006
+
+This article is available from: http://www.tbiomed.com/content/3/1/41
+© 2006 Liebermeister and Klipp; licensee BioMed Central Ltd.
+This is an Open Access article distributed under the terms of the Creative Commons Attribution License (http://creativecommons.org/licenses/by/2.0),
+which permits unrestricted use, distribution, and reproduction in any medium, provided the original work is properly cited.
+
+Abstract
+Background: Translating a known metabolic network into a dynamic model requires rate laws for
+all chemical reactions. The mathematical expressions depend on the underlying enzymatic
+mechanism; they can become quite involved and may contain a large number of parameters. Rate
+laws and enzyme parameters are still unknown for most enzymes.
+Results: We introduce a simple and general rate law called "convenience kinetics". It can be
+derived from a simple random-order enzyme mechanism. Thermodynamic laws can impose
+dependencies on the kinetic parameters. Hence, to facilitate model fitting and parameter
+optimisation for large networks, we introduce thermodynamically independent system parameters:
+their values can be varied independently, without violating thermodynamical constraints. We
+achieve this by expressing the equilibrium constants either by Gibbs free energies of formation or
+by a set of independent equilibrium constants. The remaining system parameters are mean
+turnover rates, generalised Michaelis-Menten constants, and constants for inhibition and activation.
+All parameters correspond to molecular energies, for instance, binding energies between reactants
+and enzyme.
+Conclusion: Convenience kinetics can be used to translate a biochemical network – manually or
+automatically - into a dynamical model with plausible biological properties. It implements enzyme
+saturation and regulation by activators and inhibitors, covers all possible reaction stoichiometries,
+and can be specified by a small number of parameters. Its mathematical form makes it especially
+suitable for parameter estimation and optimisation. Parameter estimates can be easily computed
+from a least-squares fit to Michaelis-Menten values, turnover rates, equilibrium constants, and
+other quantities that are routinely measured in enzyme assays and stored in kinetic databases.
+
+Background
+Dynamic modelling of biochemical networks requires
+quantitative information about enzymatic reactions.
+Because many metabolic networks are known and stored
+in databases [1,2], it would be desirable to translate networks automatically into kinetic models that are in agreement with the available data. As a first attempt, all
+reactions could be described by versatile laws such as
+
+mass-action kinetics, generalised mass-action kinetics
+[3,4] or linlog kinetics [5,6]. However, these kinetic laws
+fail to describe enzyme saturation at high substrate concentrations, which is a common and relevant phenomenon.
+A prominent example of a saturable kinetics is the reversible form of the traditional Michaelis-Menten kinetics [7]
+
+Page 1 of 13
+(page number not for citation purposes)
+
+Theoretical Biology and Medical Modelling 2006, 3:41
+
+for a reaction A ↔ B. At substrate concentration a and
+product concentration b (measured in mM), the reaction
+rate reads
+
+kcat a − k−cat b
+v(a, b) = E +
+1+ a + b
+
+(1)
+
+with enzyme concentration E, turnover rates k+cat and k−cat
+(measured in s-1), the shortcuts ã = a/ kaM and b = b/ kbM ,
+and Michaelis-Menten constants kaM and kbM (in mM).
+The rate law (1) can be derived from an enzyme mechanism: kaM and kbM are the dissociation constants for reactants bound to the enzyme. In the original work by
+Michaelis and Menten for irreversible kinetics, kM was a
+dissociation constant. Later, Briggs and Haldane presented a different derivation that assumes a quasi-steady
+state for the enzyme-substrate complex and defines kM as
+the sum of rate constants for complex degradation,
+divided by the rate constant for complex production, kM =
+(k-1 + k2)/k1. Other kinetic laws have been derived from
+specific molecular reaction mechanisms [8,9]; they can
+have complicated mathematical forms and have to be
+established separately for each reaction stoichiometry.
+Large numbers of enzyme kinetic parameters, such as
+equilibrium constants, Michaelis-Menten values, turnover
+rates, or inhibition constants have been collected in databases [10-12], but using them for modelling is not at all
+straightforward: the values have usually been measured
+under different, often in-vitro conditions, so they may be
+incompatible with each other or inappropriate for a certain model [13,14]. In addition, the second law of thermodynamics implies constraints between the kinetic
+parameters: in a metabolic system, the Gibbs free energies
+of formation of the metabolites determine the equilibrium constants of the reactions [15]. This leads to constraints between kinetic parameters within reactions [16]
+and across the entire network [17,18] – a big disadvantage
+for all methods that scan the parameter space, such as
+parameter fitting, sampling, and optimisation. Also, if
+parameter values are guessed from experiments and then
+directly inserted into a model, this model is likely to be
+thermodynamically wrong.
+We describe here a saturable rate law which we call "convenience kinetics" owing to its favourable properties: it is
+a generalised form of Michaelis-Menten kinetics, covers
+all possible stoichiometries, describes enzyme regulation
+by activators and inhibitors, and can be derived from a
+rapid-equilibrium random-order enzyme mechanism. To
+ensure thermodynamic correctness, we write the conven-
+
+http://www.tbiomed.com/content/3/1/41
+
+ience kinetics in terms of thermodynamically independent parameters [18]. A short introduction to kinetic
+modelling is given in the methods section; a list of mathematical symbols and an illustrative example is also provided [See Additional file 1]. The companion article [19]
+explains how the parameters can be estimated from an
+integration of thermodynamic, kinetic, metabolic, and
+proteomic data.
+
+Results and discussion
+The convenience kinetics
+The simple form of equation (1) encourages us to use a
+similar formula for other stoichiometries. For a reaction
+
+A1 + A2 + ... ↔ B1 + B2 + ...
+with concentration vectors a = (a1, a2, ...)T and b = (b1, b2,
+...)T, we define the convenience kinetics
+
+k+cat ∏ ai − k−cat ∏ b j
+v(a , b) = E
+
+i
+
+j
+
+∏ (1 + ai ) + ∏ (1 + b j ) − 1
+i
+
+(2)
+
+.
+
+j
+
+By analogy to the kM values in Michaelis-Menten kinetics,
+we have defined substrate constants kaM and product coni
+
+stants kbM (in mM); just as above, variables with a tilde
+j
+
+denote the normalised reactant concentrations ãi = ai/ kaM
+i
+
+and b j = bj/ kbM . If the denominator is multiplied out, it
+j
+
+contains all mathematical products of normalised substrate concentrations and product concentrations, but no
+mixed terms containing substrates and products together;
+the term +1 in the denominator is supposed to appear
+only once, so it is subtracted in the end. If several molecules of the same substance participate in a reaction, that
+is, for general stoichiometries
+
+α1 A1 + α2 A2 + ... ↔ β1 B1 + β2 B2 + ...,
+the formula looks slightly different:
+β
+
+α
+
+k+cat ∏ ai i − k−cat ∏ b j j
+v(a , b) = E
+
+i
+
+j
+
+β
+
+α
+
+∏ (1 + ai + ... + ai i ) + ∏ (1 + b j + ... + b j j ) − 1
+j
+
+i
+
+( 3)
+
+β
+
+α
+
+k+cat ∏ ai i − k−cat ∏ b j j
+i
+
+= E
+
+αi
+
+j
+
+βj
+
+.
+
+∏ ( ∑ (ai ) ) + ∏ ( ∑ (b j )m ) − 1
+i
+
+m =0
+
+m
+
+j
+
+m =0
+
+Page 2 of 13
+(page number not for citation purposes)
+
+Theoretical Biology and Medical Modelling 2006, 3:41
+
+http://www.tbiomed.com/content/3/1/41
+
+The stoichiometric coefficients αi and βj appear as exponents in the numerator and determine the orders of the
+polynomials in the denominator.
+Reaction velocities do not only depend on reactant concentrations, but can also be controlled by modifiers. For
+each of them, we multiply eqn. (3) by a prefactor
+
+centrations of small metabolites by small letters (e.g., a =
+[A]).
+The reaction proceeds from left to right; the free enzyme
+E0 binds to the substrates A and X in arbitrary order, forming the complexes EA, EX, and EAX. The binding of A can be
+described by an energy, the standard Gibbs free energy
+
+hA (d, k A ) =
+
+(0)
+
+kA + d
+d
+or alternatively, hA (d, k A ) = 1 + A
+k
+for an activator and
+hI (d, kI ) =
+
+kI
+
+(4)
+
+A+X↔B+Y
+without enzyme regulation. The reaction mechanism
+looks as follows:
+
+B
+
+X
+cat
+
+k+
+E AX
+
+cat
+
+that is necessary to detach A
+
+M
+from the complex EA. The dissociation constant kA
+= (a
+
+(0)
+
+We shall demonstrate how the convenience rate law is
+derived for a bimolecular reaction
+
+E0
+
+A
+
+kAM = e −ΔGA / RT mM
+
+Convenience kinetics represents a random-order enzyme
+mechanism
+Like many established rate laws (first of all, irreversible
+Michaelis-Menten kinetics [20]), convenience kinetics can
+be derived from a molecular enzyme mechanism. We
+impose three main assumptions: (i) the substrates bind to
+the enzyme in arbitrary order and are converted into the
+products, which then dissociate from the enzyme in arbitrary order; (ii) binding of substrates and products is
+reversible and much faster than the conversion step; (iii)
+the binding energies of individual reactants do not
+depend on other reactants already bound to the enzyme.
+
+A
+
+(0)
+
+in chemical equilibrium and can be computed from the
+Gibbs free energy (in kJ/mol)
+
+for an inhibitor. The activation constants kA and inhibition constants kI are measured in mM, and d is the concentration of the modifier.
+
+EA
+
+(0)
+
+[E0])/[EA] describes the balance of bound and unbound A
+
+( 5)
+
+kI + d
+
+(0)
+
+ΔGA = GE + GA − GE
+
+d
+
+E BY
+
+EY
+
+(6)
+
+with RT ≈ 2.490 kJ/mol.
+We now make a simplifying assumption: the binding
+energy of A does not depend on whether X is already
+bound. With analogous assumptions for binding of X and
+M
+with the abbreviations a = a / kA
+, x = x / kXM , the equilib-
+
+rium concentrations of the substrate complexes can be
+written as [EA] = ã [E0], [EX] = x [E0], [EAX] = ã x [E0]. By
+analogy, we obtain expressions for the product complexes
+on the right hand side: [EB] = b [E0], [EY] = y [E0], [EBY] =
+
+b y [E0]. The total enzyme concentration E is the sum
+over the concentrations of all enzyme complexes
+
+(7)
+
+E = [E0 ] (1 + a + x + ax + b + y + by).
+
+We next assume a reversible conversion between the complexes EAX and EBY with forward and backward rate constants k+cat and k−cat ; this reaction step determines the
+overall reaction rate. Its velocity reads
+v(a, x, b, y) = k+cat [EAX ] − k−cat [EBY ]
+
+Y
+
+= k+cat ax[E0 ] − k−cat by[E0 ]
+
+E0
+
+= E
+
+k
+X
+
+B
+EX
+A
+Y EB
+The letters A, X, B, Y denote the reactants, E0 is the free
+enzyme, and EA, EX, EAX, EB, EY, and EBY denote complexes
+of the enzyme and different combinations of reactants.
+We shall denote their concentrations by brackets (e.g.,
+[EA]), the total enzyme concentration by E, and the con-
+
+= E
+
+k+cat ax − k−cat by
+1 + a + x + ax + b + y + by
+k+cat ax − k−cat by
+(1 + a)(1 + x) + (1 + b)(1 + y) − 1
+
+,
+
+(8)
+
+which is exactly the convenience rate law (2). The derivation has shown that the turnover rates k±cat stem from the
+conversion step, while the reactant constants kM are actuPage 3 of 13
+(page number not for citation purposes)
+
+Theoretical Biology and Medical Modelling 2006, 3:41
+
+http://www.tbiomed.com/content/3/1/41
+
+ally dissociation constants, related to the binding energies
+between reactants and enzyme. The terms in the denominator represent the enzyme complexes in the reaction
+scheme shown above. Equation (8) also shows why the
+term -1 in formulae (2) and (3) is necessary: the two product terms in the denominator represent all complexes
+shown in the reaction scheme. However, when summing
+up the terms from both sides, we counted the free enzyme
+E0 twice, so we have to subtract it once.
+The same kind of argument can be applied to reactions
+with other stoichiometries; let us consider a reaction with
+the left-hand side 2 A + X ↔ ...
+
+A
+
+A
+E0
+
+EA
+
+EA A
+
+X
+
+X
+
+X
+E AAX
+
+E AX
+
+EX
+A
+
+kcat
++
+
+A
+
+kcat
+
+very unfavourable. As a consequence, all b j in eqn. (3)
+vanish and we obtain the irreversible rate law
+
+i
+
+−1
+
+α
+
+⎛ αi
+⎞
+= E k+cat ∏ ⎜ ∑ (ai )−m ⎟ .
+⎜
+⎟
+i
+i ⎝ m =0
+⎠
+∑ (ai )m
+
+v(a) = E k+cat ∏ α
+
+ai i
+
+( 10 )
+
+m =0
+
+The reactant constants denote half-saturation
+concentrations
+Besides being a dissociation constant, the kM value in
+Michaelis-Menten kinetics (1) has a simple mathematical
+meaning: it denotes the substrate concentration that leads
+to a half-maximal reaction velocity if the product is
+absent. A similar rule holds for the substrate and product
+constants in convenience kinetics. Let us first assume that
+all stoichiometric coefficients are ±1; if the product concentrations vanish (bj = 0), then rate law (2) can be factorised into
+
+.
+ai
+.
+1
++
+ai
+i
+
+v(a , 0) = E k+cat ∏
+
+The substrate complex EAAX gives rise to the first term
+
+( 11 )
+
+k+cat ã2 x in the numerator, with the stoichiometric coeffi-
+
+If in addition, all substrate concentrations except for a certain am are kept fixed, the rate law reads
+
+cient in the exponent. In the denominator, each term corresponds to one of the enzyme complexes, yielding
+
+v(a , 0) =
+
+1 + a + x + ax + a2 + a2 x + ... = (1 + a + a2 )(1 + x) + ...
+
+( 9)
+
+where the dots still denote the terms from the right-hand
+side. The shape of the two factors, (1 + ã + ã2) and (1 + x ),
+corresponds to the rows and columns in the above
+scheme.
+The activation and inhibition terms in the prefactor can
+also be justified mechanistically: in addition to binding
+sites for reactants, the enzyme contains binding sites for
+activators and inhibitors. Only those enzyme molecules
+to which all activators and none of the inhibitors are
+bound contribute to the reaction mechanism; all other
+enzyme molecules are inactive. Again, we assume that the
+Gibbs free energies for binding do not depend on whether
+other modifiers are bound, and they determine the kA and
+kI values as in eqn. (6).
+To define a convenience kinetics for irreversible reactions,
+we assume that all product constants kbM – and thereby
+the overall equilibrium constant, as will be explained
+below – go to infinity. In the enzymatic mechanism, binding between products and enzyme becomes energetically
+
+am
+⋅ const.
+1 + am
+
+( 12 )
+
+For am → ∞, the fraction approaches 1, while for am = kaM
+it yields 1/2. In particular, if all other substrates are
+present in high amounts, we obtain the half-maximal
+velocity, just as in Michaelis-Menten kinetics.
+What if the stoichiometric coefficient is larger than one?
+Applying the same argument for αm = 2, we obtain the
+velocity
+
+v(a , 0) =
+
+2
+am
+2
+1 + am + am
+
+⋅ const.
+
+( 13 )
+
+At am = kaM , the ratio is 1/3, so the reaction rate is 1/3 of
+the maximal rate. Extending this argument to other stoichiometric coefficients αi, we can conclude: at am = kaM ,
+excess of all other substrates, and vanishing product concentrations, the reaction rate equals the maximal reaction
+rate divided by 1 + αi.
+Convenience kinetics for entire biochemical networks
+To parametrise an entire metabolic network with stoichiometric matrix N and regulation matrix W (for notation,
+see methods section), it is practical to arrange the kinetic
+Page 4 of 13
+(page number not for citation purposes)
+
+Theoretical Biology and Medical Modelling 2006, 3:41
+
+http://www.tbiomed.com/content/3/1/41
+
+parameters in vectors and matrices. The enzyme concentration of a reaction l reads El, and the turnover rates are
+called k±cat
+l . Each stoichiometric interaction (where nil ≠ 0)
+comes with a value
+
+kliM , while activation (wli = 1) and
+
+inhibition (wli = -1) are quantified by values kliA and kliI ,
+respectively. The kM, kA and kI values for non-existing interactions (where nil = 0 or wli = 0) remain unspecified or can
+be assigned a value of 1, i.e., a logarithmic value of 0.
+
+n−
+
+vl = El ∏
+m
+
+j
+
+∏
+
+α
+ai i
+
+=
+
+k+
+
+k−cat
+
+j
+
+j
+
+∏ (kaM )α
+i
+
+i
+
+i
+
+( 16 )
+
+.
+i
+
+In the notation of eqn. (14) and by taking the logarithm,
+the Haldane relationship can be expressed as
+cat
+M
+ln kleq = ln k+cat
+l − ln k−l + ∑ nil ln kli .
+
+( 17 )
+
+For each reaction, this relationship constitutes a constraint for the kinetic parameters within the reaction. In
+addition, each equilibrium constant obeys
+
+n+
+
+cat
+il
+il
+k+cat
+l ∏ cli − k−l ∏ cli
+i
+
+i
+
+nil−
+
+nil+
+
+i m =0
+
+i m =0
+
+( 14 )
+
+.
+
+∏ ∑ (cli )m + ∏ ∑ (cli )m − 1
+
+here, we defined the matrices N+ = ( n+ ), N- = ( n− ), which
+il
+
+ln kleq = −∑ nil Gi
+
+(0)
+
+( 18 )
+
+/(RT ),
+
+i
+
+with the abbreviation cli = ci / kliM . For ease of notation
+il
+
+respectively contain the absolute values of all positive and
+negative elements of N. The matrices W+ and W- are
+derived from W in the same way.
+Let us add some remarks, (i) It is common to describe
+some of the metabolite concentrations by fixed values
+rather than by a balance equation. In the present framework, these metabolites are included in the concentration
+vector c and in the structure matrices N or W. (ii) A reaction is always catalysed by a specific enzyme; we describe
+isoenzymes by distinct reactions. (iii) If the sign of a regulatory interaction is unknown, we may consider terms for
+both activation and inhibition. (iv) To describe indirect
+regulation, e.g. by transcriptional control, the production
+and degradation of enzymes has to be modelled explicitly
+by chemical reactions.
+Thermodynamic dependence between parameters
+The convenience kinetics (14) has a major drawback: its
+parameters are constrained by the second law of thermodynamics. The equilibrium constant of reaction l is
+defined as
+
+kleq = ∏ (cieq )nil
+
+keq =
+
+βj
+
+∏ (kbM )
+cat
+
+i
+
+With metabolite concentrations arranged in a vector c, the
+convenience kinetics can now be written as
+
++
+−
+A wlm
+I wlm
+hA (cm , klm
+) hI (cm , klm
+)
+
+βj
+
+∏ bj
+
+( 15 )
+
+i
+
+where ceq is a vector of metabolite concentrations in a
+chemical equilibrium state. By setting eqn. (3) to zero, we
+obtain the Haldane relationship [16] for the convenience
+kinetics,
+
+(0)
+
+where Gi
+
+is the Gibbs free energy of formation of
+
+metabolite i (see methods). Equations (17) and (18)
+imply that parameters in the entire network are coupled;
+an arbitrary choice can easily violate the second law of
+thermodynamics, which is a severe obstacle to parameter
+optimisation and fitting.
+Thermodynamically independent system parameters
+To circumvent this problem, we introduce new, thermodynamically independent system parameters [18]. For
+each substance i, we define the dimensionless energy constant
+(0)
+
+kiG = eGi
+
+/(RT )
+
+( 19 )
+
+with Boltzmann's gas constant R ≈ 8.314 J/(mol K) and
+given absolute temperature T. For each reaction l, we
+define the velocity constant
+cat 1 / 2
+klV = (k+cat
+l k−l )
+
+( 20 )
+
+as the geometric mean of the forward and backward turnover rate, measured in s-1. From now on, we shall use the
+energy constants and velocity constants as model parameters and treat the equilibrium constants keq and the turnover rates kcat as dependent quantities: the equilibrium
+constants are computed from eqn. (18), and kcat values are
+chosen such that equation (17) is satisfied. Using equations (17) and (18), we can write the turnover rates k±cat
+as [See Additional file 1]
+
+Page 5 of 13
+(page number not for citation purposes)
+
+Theoretical Biology and Medical Modelling 2006, 3:41
+
+k±cat
+l
+
+=
+
+klV
+
+∏
+
+http://www.tbiomed.com/content/3/1/41
+
+( 21 )
+
+(kiG kliM )∓ nil / 2
+
+i
+
+G M nil− ⎞
+⎛
+⎜ ∏ (ki kli ) ⎟
+⎟
+= klV ⎜ i
+G M nil+ ⎟
+⎜
+)
+(
+k
+k
+⎜ ∏ i li
+⎟
+⎝ i
+⎠
+
+±1 / 2
+
+( 22 )
+
+Altogether, the convenience kinetics of a metabolic network is characterised by the system parameters listed in
+table 1. If a reaction network is displayed as a bipartite
+graph of metabolites and reactions, each of the nodes and
+each of the arrows in the graph is characterised by one of
+the parameters, as shown in Figure 1. In addition, each
+node can carry an enzyme concentration El or a metabolite
+concentration ci; as these concentrations can fluctuate in
+time, we shall call them state parameters rather than system parameters.
+By taking the logarithm in both sides of eqn. (22), we
+obtain a linear equation between logarithmic parameters;
+this handy property also holds for other dependent
+parameters, as shown in table 2. We can express various
+kinetic parameters in terms of the system parameters: let θ
+denote the vector of logarithmic system parameters and x
+a vector containing various derived parameters in logarithmic form. It can be computed from θ by the linear relation
+
+x(θ ) = Rθx θ .
+
+( 23 )
+
+The sensitivity matrix Rθx is sparse and can be constructed
+easily from the network structure and the relations listed
+in table 2 [See Additional file 1].
+By inserting the expression (22) for k±cat
+l into (14), we
+obtain a rate law in which all parameters can be varied
+independently, remaining in accordance with thermodynamics. In its thermodynamically independent form, the
+convenience kinetics reads
++
+
+−
+
+A wlm
+I wlm
+vl = El ∏ hA (cm , klm
+) hI (cm , klm
+)
+m
+
+n+
+
+n−
+
+∏ cli il (kliM )−nil / 2 − ∏ cli il (kliM )nil / 2
+
+×klV i
+
+( 24 )
+
+i
+
+nil−
+
+ni+l
+
+∏ ∑ (cli ) + ∏ ∑ (cli )m − 1
+m
+
+i m =0
+
+i m =0
+
+with the abbreviations cli = ci / kliM and kliM = kiGkliM . Special cases for some simple stoichiometries are listed in
+table 3.
+Energy interpretation of the parameters
+All system parameters can be expressed in terms of Gibbs
+free energies: the kM, kA, and kI values represent binding
+energies, and the energy constants kG are defined by the
+Gibbs free energy of formation. Finally, we can also write
+the velocity constants as
+(0)
+
+k V = e − ΔGtr /(RT )s−1.
+
+( 25 )
+
+Table 1: Model parameters for convenience kinetics
+
+Parameter
+
+Symbol
+
+unit item in graph
+
+energy interpretation
+
+Energy constant
+
+kiG
+
+1 metabolite
+
+metabolite formation
+
+Velocity constant
+
+klV
+
+1/s reaction
+
+transition state
+
+Michaelis-Menten constant
+
+kliM
+
+mM arrow reaction – substrate
+
+substrate binding
+
+Activation constant
+
+kliA
+
+mM arrow reaction – activator
+
+activator binding
+
+Inhibition constant
+
+kliI
+
+mM arrow reaction – inhibitor
+
+inhibitor binding
+
+Metabolite concentration
+
+ci
+
+mM metabolite
+
+Enzyme concentration
+
+El
+
+mM reaction
+
+The system parameters (top) are thermodynamically independent. Their numerical values can be written as exp(G/RT) where G denotes either a
+Gibbs free energy or a difference of Gibbs free energies. The corresponding molecular processes are listed in the last column. In contrast to the
+system parameters, enzyme and metabolite concentrations (bottom) can easily fluctuate over time; we call them state parameters.
+
+Page 6 of 13
+(page number not for citation purposes)
+
+Theoretical Biology and Medical Modelling 2006, 3:41
+
+http://www.tbiomed.com/content/3/1/41
+
+I
+kThreonine
+
+Homoserine
+
+kMHomoserine
+
+kGHomoserine
+
+M
+
+k P−Homoserine
+HK
+V
+
+k HK
+
+M
+
+kATP
+
+ATP
+
+M
+
+k ADP
+
+P−Homoserine
+
+Threonine
+
+kGP−Homoserine
+
+kGThreonine
+
+ADP
+
+G
+kATP
+
+G
+
+kADP
+
+Figure parameters
+System
+1
+for convenience kinetics
+System parameters for convenience kinetics. The homoserine kinase reaction (HK, dotted box) transforms homoserine
+and ATP into O-phospho-homoserine and ADP (solid arrows). Threonine inhibits the enzyme (dotted arrow). Each node and
+each arrow carries one of the system parameters: each metabolite is characterised by an energy constant kG, the reaction by a
+velocity constant kV, and each arrow by a kM or kI value. The system parameters are thermodynamically independent and can
+assume arbitrary positive values. The turnover rates k±cat for forward and backward direction can be computed from the system parameters.
+where the quantities G(0) denote Gibbs free energies of formation for the substrate complex EAX, the product com-
+
+(0)
+
+To illustrate the meaning of the energy ΔGtr , we consider again the bimolecular enzymatic mechanism: in
+transition state theory [15], the rate constants between the
+substrate and product complex are formally written as
+
+k+cat
+k−cat
+
+= e
+= e
+
+(0) (0)
+−(Gtr −GE )/( RT ) −1
+AX
+
+s
+
+be crossed on the way from EAX to EBY. By inserting eqn.
+(26) into the definition (20) and defining an energy bar(0)
+(0) 1 (0)
+(0)
+rier ΔGtr = Gtr − ⎛⎜ GE + GE ⎞⎟ , we obtain eqn.
+BY ⎠
+2 ⎝ AX
+(25).
+
+( 26 )
+
+(0) (0)
+−(Gtr −GE )/( RT ) −1
+BY
+
+plex EBY, and a hypothetical transition state Etr that has to
+
+s ,
+
+Table 2: Dependent kinetic parameters
+
+Quantity
+
+Symbol
+
+unit
+
+Formula
+
+Gibbs free energy of formation
+
+Gi
+
+kJ/mol
+
+Gi
+
+Gibbs fr. en. for substrate binding
+
+ΔGli
+
+kJ/mol
+
+ΔGli
+
+Equilibrium constant
+
+kleq
+
+-
+
+(0)
+
+(0)
+
+(0)
+
+= RT ln kiG
+
+(0)
+
+= RT ln kliM
+
+ln kleq = −∑ nil ln kiG
+i
+
+1
+∑ nil (ln kiG + ln kliM )
+2 i
+
+Turnover rate
+
+k±cat
+l
+
+1/s
+
+V
+ln k±cat
+l = ln kl ∓
+
+Maximal velocity
+
+v±max
+l
+
+mM/s
+
+ln v±max
+= ln El + ln klV ∓
+l
+
+1
+nil (ln kiG + ln kliM )
+∑
+2 i
+
+The logarithms of dependent parameters (and also the Gibbs free energies of formation) can be written as linear functions of the logarithmic system
+parameters. Equilibrium constants can have different physical units depending on the reaction stoichiometry.
+
+Page 7 of 13
+(page number not for citation purposes)
+
+Theoretical Biology and Medical Modelling 2006, 3:41
+
+http://www.tbiomed.com/content/3/1/41
+
+Table 3: Convenience rate laws for common reaction stoichiometries
+
+Reaction formula
+
+Rate law
+
+A↔B
+
+k+cat a − k−cat b
+
+A+X↔B
+
+k+cat ax − k−cat b
+
+A+X↔B+Y
+
+1+ a + b
+
+1 + a + x + ax + b
+k+cat ax − k−cat by
+1 + a + x + ax + b + y + by
+
+2A↔B
+
+k+cat a2 − k−cat b
+
+2A↔B+Y
+
+k+cat a2 − k−cat by
+
+1 + a + a2 + b
+
+1 + a + a2 + b + y + by
+k+cat a2 x − k−cat b
+
+2A+X↔B
+
+(1 + a + a2 )(1 + x) + b
+
+cat
+Turnover rates k±
+
+Irreversible
+
+kM
+k V ( AM )±1 / 2
+kB
+
+k+cat a
+1+ a
+
+kMkM
+k V ( A MX )±1 / 2
+kB
+
+k+cat ax
+1 + a + x + ax
+
+kMkM
+k V ( AM XM )±1 / 2
+kB kY
+
+k+cat ax
+1 + a + x + ax
+
+kV (
+
+(kAM )2 ±1 / 2
+)
+kBM
+
+k+cat a2
+1 + a + a2
+
+(k M )2
+k V ( MA M )±1 / 2
+kB kY
+kV (
+
+k+cat a2
+1 + a + a2
+
+(kAM )2 kXM ±1 / 2
+)
+kBM
+
+k+cat a2 x
+(1 + a + a2 )(1 + x)
+
+The rate laws follow from the enzyme mechanism and reflect the reaction stoichiometry; for each case, the thermodynamically independent
+M
+M
+G M
+expression of the turnover rates and the irreversible form are also shown. We use the shortcuts a = a / kA and kA = kA kA for metabolite
+A and analogous shortcuts for the other metabolites. For brevity, the prefactors for enzyme concentration and enzyme regulation are not shown.
+
+Independent equilibrium constants as system parameters
+
+We introduced the energy constants kiG as model parameters for two reasons: first, they provide a consistent way
+to describe the equilibrium constants; secondly, if Gibbs
+free energies of formation are known from experiments,
+they can be used for fitting the energy constants and will
+thus contribute to a good choice of equilibrium constants.
+However, if no such data are available, the second reason
+becomes redundant, and a different choice of the system
+parameters may be appropriate: instead of the energy constants, we employ a set of independent equilibrium constants. If the stoichiometric matrix N has full column
+rank, then the equilibrium constants are independent
+anyway because for given keq, eqn. (18) can always be sat(0)
+
+( 27 )
+
+eq
+ln k eq = Rind
+ln kind .
+
+The choice of independent reactions and the computation
+eq
+of Rind
+are explained in the methods section. Given the
+
+equilibrium and velocity constants, the turnover rates can
+be expressed as
+
+( )
+
+eq
+V
+k±cat
+l = kl kl
+
+±1 / 2
+
+( 28 )
+
+,
+
+or equivalently as
+V
+ln k±cat
+l = ln kl ±
+
+1
+ln kleq
+2
+
+( 29 )
+
+isfied by some choice of the Gi ; in this case, the equilib-
+
+and be inserted into eqn. (14).
+
+rium constants can be directly used as model parameters.
+Otherwise, we can choose a set of reactions with the following property: their equilibrium constants (collected in
+a vector kind) are thermodynamically independent, and
+they determine all other equilibrium constants in the
+model via a linear equation
+
+The convenience kinetics resembles other rate laws
+To check whether the convenience kinetics yields any
+unusual results, we compared it to two established rate
+laws, namely the ordered and ping-pong mechanisms for
+bimolecular reactions. In both mechanisms, binding and
+dissociation occur in a fixed order:
+
+Page 8 of 13
+(page number not for citation purposes)
+
+Theoretical Biology and Medical Modelling 2006, 3:41
+
+X
+
+A
+Ordered
+
+E
+
+Ping pong
+
+E
+
+B
+E
+
+E
+
+EA
+
+AX
+
+B
+
+A
+
+were independently sampled from a uniform distribution
+in the interval [0.001, 1000] and from a log-uniform distribution on the same interval. Figure 2 shows scatter plots
+between reaction velocities computed from the different
+rate laws. For the uniform distribution, the results from
+convenience kinetics resemble those from ordered and
+ping-pong kinetics; they are about as similar as the
+ordered and ping-pong kinetics. With the log-uniform distribution, the correlations between all three kinetics
+become smaller, and ping-pong kinetics is more similar to
+convenience than to ordered kinetics. We conclude that
+erroneously choosing convenience kinetics instead of the
+other kinetic laws is just as risky as a wrong choice
+between the two other mechanisms.
+
+Y
+E
+
+EY
+
+BY
+
+X
+E
+
+EA
+
+http://www.tbiomed.com/content/3/1/41
+
+Y
+
+*
+
+X
+
+E
+
+E
+
+Besides the turnover rates and kM values, their kinetic laws
+also contain product inhibition constants. For the comparison, we made the simplifying (yet biologically realistic) assumption that these inhibition constants equal the
+respective kM values, which yields the following rate laws
+[8]
+Ordered mechanism : v = E
+
+k+cat ax − k−cat by
+
+( 30 )
+
+1 + a + x + ax + b + y + by + ab + xy + axb + xby
+
+Ping-pong mechanism : v = E
+
+k+cat ax − k−cat by
+a + x + ax + b + y + by + ab + xy
+
+Parameter estimation
+The parameters in convenience kinetics – the independent
+and the resulting dependent ones – can be measured in
+experiments. The linear relationship (23) makes it particularly easy to use such experimental values for parameter
+fitting: given a metabolic network, we mine the literature
+for thermodynamic and kinetic data, in particular Gibbs
+free energies of formation, reaction Gibbs free energies,
+equilibrium constants, kM values, kI values, kA values, and
+turnover rates, and merge their logarithms in a large vector
+
+( 31 )
+
+.
+
+In contrast to the convenience rate law (8), the denominators contain mixed terms between substrates and products, and in the ping-pong kinetics, the term +1 is missing.
+The ordered mechanism yields smaller reaction rates than
+the ping-pong and the convenience kinetics because its
+denominator is always larger. To compare the three rate
+laws, we sampled metabolite concentrations and kM values from a random distribution and computed the resulting reaction velocities. Parameters and concentrations
+va.u. Convenience
+
+va.u. Convenience
+
+va.u. PingPong
+
+400
+
+0
+-100
+
+200
+
+0
+
+-200
+
+-200
+
+200
+va.u. Ordered
+
+100
+
+va.u. PingPong
+
+va.u. Ordered
+
+200
+
+100
+0
+-100
+-200
+
+-400
+-400
+
+-200
+
+0
+
+200
+
+400
+
+-400
+
+va.u. Convenience
+
+-200
+
+0
+
+200
+
+400
+
+-400
+
+0
+
+200
+
+400
+
+va.u. PingPong
+0.6
+
+va.u. Ordered
+
+0.2
+0
+-0.2
+-0.4
+
+va.u. PingPong
+
+1
+0.5
+0
+-0.5
+-1
+
+0.4
+
+va.u. Ordered
+
+0.6
+0.4
+
+-0.6
+-3
+
+-200
+
+va.u. Convenience
+
+0.2
+0
+-0.2
+-0.4
+-0.6
+
+-2
+
+-1
+
+0
+
+1
+
+2
+
+3
+
+-3
+
+-2
+
+-1
+
+0
+
+1
+
+2
+
+3
+
+-1
+
+-0.5
+
+0
+
+0.5
+
+1
+
+Figure 2 of ordered, ping-pong, and convenience kinetics
+Comparison
+Comparison of ordered, ping-pong, and convenience kinetics. Kinetic parameters and reactant concentrations were
+drawn from random distributions; each of the rate laws yields different reaction velocities. Top: concentrations and parameters
+were drawn from a uniform distribution. The scatter plots show the results from convenience versus ordered kinetics (left, linear correlation coefficient R = 0.94), convenience versus ping-pong kinetics (centre, R = 0.98), and ping-pong versus ordered
+kinetics (right, R = 0.98). The similarity between convenience and ping-pong kinetics is higher than between ping-pong and the
+ordered kinetics. Bottom: a log-uniform distribution yields different distributions and smaller correlations, but a similar qualitative result. Again, the plots show convenience versus ordered kinetics (left, R = 0.73), convenience versus ping-pong kinetics
+(centre, R = 0.90), and ping-pong versus ordered kinetics (right, R = 0.84).
+
+Page 9 of 13
+(page number not for citation purposes)
+
+Theoretical Biology and Medical Modelling 2006, 3:41
+
+x*. The vector can contain multiple values for a parameter, it can contain thermodynamically dependent parameters, and of course, many parameters from the model will
+be missing. We try to determine a vector θ of logarithmic
+system parameters that yields a good match between the
+resulting parameter predictions x (θ) and the data x*.
+Solving x* ≈ Rθx θ for θ by the method of least squares
+yields an estimate of the system parameters. Using eqn.
+(23) again, consistent values of all kinetic parameters can
+be computed from the estimated system parameters. Contradictions in the original data are resolved; in addition,
+we can employ a prior distribution representing typical
+parameter ranges to compensate for missing data. A more
+general estimation procedure, which can also integrate
+measured metabolic concentrations and fluxes, is
+described in the companion article [19].
+
+Discussion
+Convenience kinetics can be used for modelling biochemical systems in a simple and standardised way. In contrast
+to ad-hoc rate laws such as linlog or generalised massaction kinetics, the convenience kinetics is biochemically
+justified as a direct generalisation of the Michaelis-Menten
+kinetics; it is saturable and allows for activation and inhibition of the enzyme. The parameters kM, kA, and kI represent concentrations that lead to half-maximal (or in
+general, (1 + αi)-1 -maximal) effects: the kM values also
+indicate the threshold between low substrate concentrations that lead to linear kinetics and high concentrations
+at which the enzyme works in saturation.
+The convenience kinetics represents a rapid-equilibrium
+random-order enzyme mechanism. When all substrates
+are bound, they are converted in a single step into the
+products, which then dissociate from the enzyme. The kM,
+kA, and kI values represent dissociation constants between
+the enzyme and the reactant or modifier, while kV represents the velocity of the transformation step. The system
+parameters also provide a sensible basis for describing
+variability in cell populations: the Gibbs free energies of
+formation depend on the composition of the cytosol, for
+instance its pH and temperature, and can be expected to
+show small, possibly correlated variations. The remaining
+parameters reflect interaction energies, which depend on
+the enzyme's amino acid sequence; we can expect that
+these energies vary between cells, and probably more
+independently than, for instance, the forward and backward turnover rates.
+The convenience kinetics does not differ strikingly from
+established kinetic laws: in a comparison with the ordered
+and ping-pong mechanisms, the convenience kinetics
+resembled the ping-pong mechanism, and the similarity
+
+http://www.tbiomed.com/content/3/1/41
+
+between them was greater than that between the ordered
+and ping-pong mechanisms. Mathematically, the three
+rate laws differ in their denominators: in convenience
+kinetics, we find all combinations of substrate concentrations and all combinations of product concentrations, but
+no mixed terms containing both substrate and product
+concentrations. The single terms reflect the reactant complexes formed by the enzyme.
+The second concern of this paper was the incorporation of
+thermodynamic constraints: in pathway-based methods
+[21-23], proper treatment of the Gibbs free energies yields
+constraints on the flux directions; in our kinetic models, it
+leads to linear dependencies between the logarithmic
+parameters. To eliminate these constraints, we express the
+equilibrium constants keq by Gibbs free energies of formation or we choose a set of independent equilibrium constants. This trick is of course not limited to the
+convenience kinetics: independent parameters and equations of the form (23) can also be used with many other
+kinetic laws, in particular those that share the denominator of the convenience rate law; also other modes of activation and inhibition can be treated in the same manner
+as long as the modifiers do not affect the chemical equilibrium.
+The choice of rate laws and parameter values is a main
+bottleneck in kinetic modelling. Standard rate laws such
+as the convenience kinetics can facilitate the automatic
+construction and fitting of large kinetic models. For transcriptional regulation, a general saturable law has been
+proposed [24]. For metabolic systems, the convenience
+kinetics may be a mathematically handy and biologically
+plausible choice whenever the detailed enzymatic mechanism is unknown. Estimates of model parameters can be
+obtained by integration of kinetic, metabolic, and proteomic data as described in the companion article [19].
+
+Conclusion
+In kinetic modelling, every chemical reaction has to be
+characterised by a kinetic law and by the corresponding
+parameters. The convenience kinetics applies to arbitrary
+reaction stoichiometries and captures biologically relevant behaviour (saturation, activation, inhibition) with a
+small number of free parameters. It represents a simple
+molecular reaction mechanism in which substrates bind
+rapidly and in random order to the enzyme, without energetic interaction between the binding sites. The same
+holds for the dissociation of products.
+For reactions with a single substrate and a single product,
+the convenience kinetics equals the well-known Michaelis-Menten kinetics. By introducing a set of thermodynamically independent system parameters, we obtained a
+form of the rate law that ensures thermodynamic correct-
+
+Page 10 of 13
+(page number not for citation purposes)
+
+Theoretical Biology and Medical Modelling 2006, 3:41
+
+http://www.tbiomed.com/content/3/1/41
+
+ness and is notably suited for parameter fitting and optimisation.
+
+where μi
+
+Methods
+
+substance at infinite dilution, and R ≈ 8.314 J/(mol K) is
+Boltzmann's gas constant. In (34), the ci are dimension-
+
+Basic notions for metabolic models
+The structure of a metabolic network is defined by the lists
+of metabolites and reactions and by two structural matrices, N and W. The coefficients nil contained in the stoichiometric matrix N describe how many molecules of type i
+are produced in reaction l; negative elements describe
+consumption of molecules. The elements of the regulation matrix W describe enzyme regulation between
+metabolites i and enzymes l: wli = 1 indicates activation, wli
+= -1 represents inhibition, and wli = 0 no interaction.
+
+In the setting of deterministic differential equations, the
+substance concentrations in a biochemical system follow
+the balance equations
+
+d
+c = N v ( c ,k ) .
+dt
+
+( 32 )
+
+The vectors c, v, and k contain the metabolite concentrations (in mM), reaction velocities (in mM/s), and system
+parameters, respectively. External or buffered metabolites
+with fixed concentrations are contained in the parameter
+vector k.
+To relate activation and inhibition (as stated in W) to the
+reaction kinetics, we first assume a hypothetical kinetic
+law without regulation; in this law, the reaction velocity
+depends only on the substrate and product concentrations. In the real rate law, a metabolite is an activator if (i)
+it increases the rate although it is not a reactant, or (ii) it
+increases the rate more strongly than it would by just
+being a reactant. Inhibition is defined analogously.
+Thermodynamical properties
+The kinetic laws vl(c, k) are constrained by fundamental
+thermodynamic laws that relate the metabolite concentrations in steady state to molecular energies [15]. A single
+reaction event of reaction l changes the Gibbs free energy
+of the system by
+
+ΔGl = ∑ nil μi
+
+( 33 )
+
+(0)
+
+denotes the chemical potential of the pure
+
+less numbers denoting concentrations in mM. In real
+mixed phases, there would be an additional term +RT ln
+
+fi0 with the activity coefficient fi. We neglect this term,
+assuming an ideal mixed phase without mixture effects on
+volume or energy; we also neglect effects of changing pressure or electric charges.
+The equilibrium constant of reaction l is defined as
+
+( )
+
+kleq = ∏ cieq
+i
+
+nil
+
+( 35 )
+
+where ceq is the vector of metabolite concentrations in a
+chemical equilibrium state. According to the second law
+of thermodynamics, the equilibrium state of a chemical
+system is characterised by a minimum of the Gibbs free
+energy. This implies that each chemical reaction in equilibrium satisfies ΔGl = 0. From eqs. (33), (34), and (35)
+follows
+
+ln kleq =
+
+∑
+
+(0)
+
+ΔG
+nil ln cieq = − l
+
+RT
+
+i
+
+(0)
+
+where ΔGl
+
+(0)
+
+= ∑ nil μi
+
+( 36 )
+
+,
+
+( P , T ) is called the standard
+
+i
+
+reaction Gibbs free energy and the concentrations are
+measured in mM. It can also be expressed as
+
+(0)
+
+ΔGl
+
+(0)
+
+= ∑ nil Gi
+
+( 37 )
+
+i
+
+(0)
+
+in terms of the Gibbs free energies of formation Gi
+
+for
+
+a standard state, typically P = 1.015 bar and T = 298.15 K.
+Equations (36) and (37) constitute the relation (18)
+between equilibrium constants and the Gibbs free energies of formation.
+
+i
+
+where the sum runs over all metabolites and μi denotes
+the chemical potential of metabolite i (in kJ/mol). In an
+ideal mixed phase at pressure P and absolute temperature
+T, the chemical potential of substance i with concentration ci reads
+
+(0)
+μi ( P , T , ci ) = μi ( P , T ) + RT ln ci
+
+( 34 )
+
+Selection of independent equilibrium constants
+Dependencies between equilibrium constants can be
+treated in a similar manner to the linear dependencies
+that constitute the conservation relations between metabolites [25]. To choose a set of reactions with independent
+equilibrium constants – for brevity, we shall call them
+independent reactions – we collect a maximal number of
+linearly independent columns of N and join them in a
+
+Page 11 of 13
+(page number not for citation purposes)
+
+Theoretical Biology and Medical Modelling 2006, 3:41
+
+http://www.tbiomed.com/content/3/1/41
+
+matrix N . The chosen columns correspond to the independent reactions, and their choice need not be unique.
+
+Additional material
+Additional file 1
+
+By construction, N has full column rank, and we can split
+
+The supplement file contains a list of the mathematical symbols used, the
+derivation of equation (22), and a detailed explanation of the sensitivity
+
+N into a matrix product N = N L , by analogy to the splitting N = L NR that is used in metabolic control analysis to
+
+x
+matrix Rθ .
+
+remove dependent metabolites.
+
+Click here for file
+[http://www.biomedcentral.com/content/supplementary/17424682-3-41-S1.pdf]
+
+To be thermodynamically feasible, the equilibrium constants have to satisfy eqn. (18) or, in vector form,
+ln keq = -NT ln kG
+
+(38)
+
+Acknowledgements
+for at least one choice of the vector kG. Let us first assume
+that kG is given; then the equilibrium constants of the
+independent reactions read
+ln kind = - N T ln kG,
+
+(39)
+
+The authors would like to thank the members of the Computational Systems Biology Group, MPI for Molecular Genetics, for lively discussions.
+They gratefully acknowledge the very helpful comments of the referees.
+This work has been funded by the Federal Ministry of Education and
+Research and by the European Commission, grant No. 503269.
+
+References
+1.
+
+and with the definition
+
+2.
+
+eq
+Rind
+= LT
+
+( 40 )
+
+we can write
+
+3.
+
+( 41 )
+
+4.
+
+eq
+Hence, eqn. (27) is satisfied and the matrix Rind
+is
+
+5.
+
+eq
+ln k eq = −LT N T ln kG = Rind
+ln k ind .
+
+known. It remains to be shown that the equilibrium constants contained in kind are indeed thermodynamically
+independent; or in other words, that for any vector ln kind,
+there exists a vector kG such that eqn. (39) holds; and this
+is indeed the case because N T has full row rank.
+
+6.
+7.
+8.
+9.
+
+Competing interests
+The authors declare that they have no competing interests.
+
+10.
+
+Authors' contributions
+
+11.
+
+Both authors conceived the convenience kinetics and carried out calculations. W.L. wrote the manuscript, E. K.
+identified the underlying molecular mechanism and
+revised the manuscript. Both authors read and approved
+the final manuscript.
+
+12.
+13.
+14.
+15.
+16.
+17.
+18.
+
+Kanehisa M, Goto S, S SK, Nakaya A: The KEGG databases at
+GenomeNet. Nucleic Acids Res 2002, 30:42-46.
+Joshi-Tope G, Gillespie M, Vastrik I, D'Eustachio P, Schmidt E, de
+Bono B, Jassal B, Gopinath G, Wu G, Matthews L, Lewis S, Birney E,
+Stein L: Reactome: a knowledgebase of biological pathways.
+Nucleic Acids Res 2005:D428-432.
+Savageau M: Biochemical systems analysis. III. Dynamic solutions using a power-law approximation. J Theor Biol 1970,
+26(2):215-226.
+Schwacke J, Voit E: Computation and analysis of time-dependent sensitivities in Generalized Mass Action systems. J Theor
+Biol 2005, 236:21-38.
+Visser D, Heijnen J: Dynamic simulation and metabolic redesign of a branched pathway using linlog kinetics. Metab Eng
+2003, 5(3):164-176.
+Visser D, Schmid J, Mauch K, Reuss M, Heijnen J: Optimal re-design
+of primary metabolism in Escherichia coli using linlog kinetics. Metab Eng 2004, 6(4):378-390.
+Michaelis L, Menten ML: Die Kinetik der Invertinwirkung. Biochemische Zeitschrift 1913, 49:333-369.
+Cornish-Bowden A: Fundamentals of Enzyme Kinetics 3rd edition. London: Portland Press Ltd; 2004.
+Klipp E, Herwig R, Kowald A, Wierling C, Lehrach H: Systems biology
+in practice. Concepts, implementation, and application Weinheim: WileyVCH; 2005.
+Schomburg I, Chang A, Ebeling C, Gremse M, Heldt C, Huhn G,
+Schomburg D: BRENDA, the enzyme database: updates and
+major new developments. Nucleic Acids Res 2004:D431-433.
+Goldberg RN, Tewari YB, Bhat TN: Thermodynamics of enzymecatalyzed reactions - a database for quantitative biochemistry. Bioinformatics 2004, 20:2874-7.
+[http://sabio.villa-bosch.de/SABIORK/].
+Chassagnole C, Raïs B, Quentin E, Fell DA, Mazat J: An integrated
+study of threonine-pathway enzyme kinetics in Escherichia
+coli. Biochem J 2001, 356:415-423.
+Snoep JL, Bruggeman F, Westerhoff BOH: Towards building the
+silicon cell: a modular approach. Biosystems 2006, 83(2–
+3):207-216.
+Haynie D: Biological Thermodynamics Cambridge: Cambridge University Press; 2001.
+Haldane J: Enzymes London: Longmans, Grenn, and Co. (reprinted by
+M.I.T. press, Cambridge, MA 1965; 1930.
+Schuster S, Schuster R: A generalization of Wegscheider's condition. Implications for properties of steady states and for
+quasi-steady-state approximation. J Math Chem 1989, 3:25-42.
+Liebermeister W, Klipp E: Biochemical networks with uncertain
+parameters. Syst Biol (Stevenage) 2005, 152(3):97-107.
+
+Page 12 of 13
+(page number not for citation purposes)
+
+Theoretical Biology and Medical Modelling 2006, 3:41
+
+19.
+20.
+21.
+22.
+23.
+24.
+25.
+
+http://www.tbiomed.com/content/3/1/41
+
+Liebermeister W, Klipp E: Bringing metabolic networks to life:
+integration of kinetic, metabolic, and proteomic data. Theor
+Biol Med Model 2006, 3(1):42. Epub ahead of print
+Briggs GE, Haldane JBS: A note on the kinetics of enzyme action.
+Biochem J 1925, 19:338-339.
+Beard DA, Liang S, Qian H: Energy balance for analysis of complex metabolic networks. Biophys J 2002, 83:79-86.
+Kümmel A, Panke S, Heinemann M: Putative regulatory sites
+unraveled by network-embedded thermodynamic analysis of
+metabolome data. Mol Syst Biol 2006, 2:2006.0034.
+Henry C, Jankowski M, Broadbelt L, Hatzimanikatis V: Genomescale thermodynamic analysis of E. coli metabolism. Biophys
+J 2006, 90:1453-1461.
+Bintu L, Buchler N, Garcia H, Gerland U, Hwa T, Kondev J, Phillips R:
+Transcriptional regulation by numbers: models. Curr Opin
+Genet Dev 2005, 15:116-124.
+Reder C: Metabolic control theory: a structural approach. J
+Theor Biol 1988, 135:175-201.
+
+Publish with Bio Med Central and every
+scientist can read your work free of charge
+"BioMed Central will be the most significant development for
+disseminating the results of biomedical researc h in our lifetime."
+Sir Paul Nurse, Cancer Research UK
+
+Your research papers will be:
+available free of charge to the entire biomedical community
+peer reviewed and published immediately upon acceptance
+cited in PubMed and archived on PubMed Central
+yours — you keep the copyright
+
+BioMedcentral
+
+Submit your manuscript here:
+http://www.biomedcentral.com/info/publishing_adv.asp
+
+Page 13 of 13
+(page number not for citation purposes)
+
+
