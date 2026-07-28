@@ -13,9 +13,10 @@ a short-chain fatty acid: # SCFAs
   - butyrate
   - propionate
   - valerate
-  - butyryl-CoA  # Acyl-CoA form can match fatty acid reactions
-  - acetyl-CoA   # Acyl-CoA form can match fatty acid reactions
-  - propionyl-CoA  # Acyl-CoA form can match fatty acid reactions
+# Acyl-CoA form can match fatty acid reactions
+  - butyryl-CoA  
+  - acetyl-CoA   
+  - propionyl-CoA  
 
 a medium-chain fatty acid:
   - hexanoate
@@ -28,11 +29,12 @@ a medium-chain fatty acid:
   - decanoic acid
   - dodecanoic acid
   - tetradecanoic acid
-  - hexanoyl-CoA  # Acyl-CoA form can match fatty acid reactions
-  - octanoyl-CoA  # Acyl-CoA form can match fatty acid reactions
-  - decanoyl-CoA  # Acyl-CoA form can match fatty acid reactions
-  - dodecanoyl-CoA  # Acyl-CoA form can match fatty acid reactions
-  - tetradecanoyl-CoA  # Acyl-CoA form can match fatty acid reactions
+  # Acyl-CoA form can match fatty acid reactions
+  - hexanoyl-CoA  
+  - octanoyl-CoA  
+  - decanoyl-CoA  
+  - dodecanoyl-CoA  
+  - tetradecanoyl-CoA  
 
 a long-chain fatty acid:
   - palmitate
@@ -43,10 +45,11 @@ a long-chain fatty acid:
   - stearic acid
   - oleic acid
   - linoleic acid
-  - palmitoyl-CoA  # Acyl-CoA form can match fatty acid reactions
-  - stearoyl-CoA  # Acyl-CoA form can match fatty acid reactions
-  - oleoyl-CoA  # Acyl-CoA form can match fatty acid reactions
-  - linoleoyl-CoA  # Acyl-CoA form can match fatty acid reactions
+  # Acyl-CoA form can match fatty acid reactions
+  - palmitoyl-CoA  
+  - stearoyl-CoA  
+  - oleoyl-CoA  
+  - linoleoyl-CoA  
 
 # Acyl-CoA derivatives (by chain length)
 a short-chain acyl-CoA:
@@ -129,9 +132,22 @@ D-glucose:
 
 D-fructose 6-phosphate:
   - fructose 6-phosphate
+  - beta-D-fructofuranose 6-phosphate
 
 D-glucose 6-phosphate:
   - glucose 6-phosphate
+  - alpha-D-glucose 6-phosphate
+  - beta-D-glucose 6-phosphate
+
+# Fructose 1,6-bisphosphate (aldolase substrate / PFK product name variants)
+D-fructose 1,6-bisphosphate:
+  - beta-D-fructofuranose 1,6-bisphosphate
+  - fructose 1,6-bisphosphate
+
+# Triose phosphates
+glycerone phosphate:
+  - dihydroxyacetone phosphate
+  - DHAP
 
 a pentose phosphate:
   - ribose 5-phosphate
@@ -175,6 +191,34 @@ a purine nucleotide:
   - IDP
   - IMP
 
+# Specific cofactor synonyms
+ATP:
+  - Adenosine triphosphate
+  - atp
+ADP:
+  - Adenosine diphosphate
+  - adp
+NAD:
+  - NAD(+)
+  - nad+
+  - nicotinamide adenine dinucleotide
+NADH:
+  - NADH
+  - nadh
+  - nadh2
+NADP:
+  - NADP(+)
+  - nadp+
+  - nicotinamide adenine dinucleotide phosphate
+NADPH:
+  - NADPH
+  - nadph
+  - nadph2
+H+:
+  - H(+)
+  - proton
+  - hydron
+
 a pyrimidine nucleotide:
   - CTP
   - CDP
@@ -186,9 +230,233 @@ a pyrimidine nucleotide:
   - TDP
   - TMP
 
+
+"an [acyl-carrier protein]":
+  - Acyl carrier protein
+  - acyl carrier protein
+  - ACP
+  - holo-ACP
+  - apo-ACP
+  - apo-[acyl-carrier protein]
+  - "an [acyl-carrier protein]"
+  - PPant
+  - ppant
+
+"malonyl-[acyl-carrier protein]":
+  - Malonyl-ACP
+  - malonyl-ACP
+  - malonyl-[acyl-carrier protein]
+  - "a malonyl-[acyl-carrier protein]"
+  - Malonyl-[acyl-carrier protein]
+  - malonyl-PPant
+
+"a 3-oxoacyl-[acyl-carrier protein]":
+  - 3-oxo-butyryl-PPant
+  - 3-oxo-hexanoyl-PPant
+  - 3-oxo-octanoyl-PPant
+  - 3-oxo-decanoyl-PPant
+  - 3-oxo-dodecanoyl-PPant
+  - 3-oxo-tetradecanoyl-PPant
+  - 3-oxo-hexadecanoyl-PPant
+
+"a (3R)-3-hydroxyacyl-[acyl-carrier protein]":
+  - (3R)-3-hydroxybutyryl-PPant
+  - (3R)-3-hydroxyhexanoyl-PPant
+  - (3R)-3-hydroxyoctanoyl-PPant
+  - (3R)-3-hydroxydecanoyl-PPant
+  - (3R)-3-hydroxydodecanoyl-PPant
+  - (3R)-3-hydroxytetradecanoyl-PPant
+  - (3R)-3-hydroxyhexadecanoyl-PPant
+
+"an enoyl-[acyl-carrier protein]":
+  - (E)-but-2-enoyl-PPant
+  - (E)-hex-2-enoyl-PPant
+  - (E)-oct-2-enoyl-PPant
+  - (E)-dec-2-enoyl-PPant
+  - (E)-dodec-2-enoyl-PPant
+  - (E)-tetradec-2-enoyl-PPant
+  - (E)-hexadec-2-enoyl-PPant
+
+"an acyl-[acyl-carrier protein]":
+  - butyryl-PPant
+  - hexanoyl-PPant
+  - octanoyl-PPant
+  - decanoyl-PPant
+  - dodecanoyl-PPant
+  - tetradecanoyl-PPant
+  - hexadecanoyl-PPant
+
+"3-oxobutanoyl-[acyl-carrier protein]":
+  - Acetoacetyl-ACP
+  - acetoacetyl-ACP
+  - acetoacetyl-[acyl-carrier protein]
+  - "an acetoacetyl-[acyl-carrier protein]"
+  - 3-oxobutanoyl-[acyl-carrier protein]
+
+"(3R)-3-hydroxybutanoyl-[acyl-carrier protein]":
+  - 3-hydroxybutanoyl-ACP
+  - 3-hydroxybutanoyl-[acyl-carrier protein]
+  - D-beta-hydroxybutyryl-[acyl-carrier protein]
+  - D-beta-hydroxybutyryl-ACP
+  - "(3R)-3-hydroxybutanoyl-[acyl-carrier protein]"
+  - "(3R)-3-hydroxybutanoyl-[acyl-carrier protein] <"
+
+"(3R)-3-hydroxyhexanoyl-[acyl-carrier protein]":
+  - 3-hydroxyhexanoyl-ACP
+  - 3-hydroxyhexanoyl-[acyl-carrier protein]
+  - "(3R)-3-hydroxyhexanoyl-[acyl-carrier protein]"
+  - (R)-3-hydroxyhexanoyl-[acyl-carrier protein]
+
+"(3R)-3-hydroxyoctanoyl-[acyl-carrier protein]":
+  - 3-hydroxyoctanoyl-ACP
+  - 3-hydroxyoctanoyl-[acyl-carrier protein]
+  - "(3R)-3-hydroxyoctanoyl-[acyl-carrier protein]"
+  - (R)-3-hydroxyoctanoyl-[acyl-carrier protein]
+
+"(3R)-3-hydroxydecanoyl-[acyl-carrier protein]":
+  - 3-hydroxydecanoyl-ACP
+  - 3-hydroxydecanoyl-[acyl-carrier protein]
+  - "(3R)-3-hydroxydecanoyl-[acyl-carrier protein]"
+  - (R)-3-hydroxydecanoyl-[acyl-carrier protein]
+
+"(3R)-3-hydroxydodecanoyl-[acyl-carrier protein]":
+  - 3-hydroxydodecanoyl-ACP
+  - 3-hydroxydodecanoyl-[acyl-carrier protein]
+  - "(3R)-3-hydroxydodecanoyl-[acyl-carrier protein]"
+  - (R)-3-hydroxydodecanoyl-[acyl-carrier protein]
+
+"(3R)-3-hydroxytetradecanoyl-[acyl-carrier protein]":
+  - 3-hydroxytetradecanoyl-ACP
+  - 3-hydroxytetradecanoyl-[acyl-carrier protein]
+  - "(3R)-3-hydroxytetradecanoyl-[acyl-carrier protein]"
+  - (R)-3-hydroxytetradecanoyl-[acyl-carrier protein]
+
+"(3R)-3-hydroxyhexadecanoyl-[acyl-carrier protein]":
+  - 3-hydroxyhexadecanoyl-ACP
+  - 3-hydroxyhexadecanoyl-[acyl-carrier protein]
+  - "(3R)-3-hydroxyhexadecanoyl-[acyl-carrier protein]"
+  - (R)-3-hydroxyhexadecanoyl-[acyl-carrier protein]
+
+"trans-but-2-enoyl-[acyl-carrier protein]":
+  - Crotonyl-ACP
+  - crotonyl-ACP
+  - crotonyl-[acyl-carrier protein]
+  - trans-but-2-enoyl-[acyl-carrier protein]
+  - "trans-but-2-enoyl-[acyl-carrier protein]"
+  - but-2-enoyl-[acyl-carrier protein]
+  - "> But-2-enoyl-[acyl-carrier protein]"
+
+"(2E)-hexenoyl-[acyl-carrier protein]":
+  - trans-hex-2-enoyl-[acyl-carrier protein]
+  - trans-Hex-2-enoyl-[acp]
+  - trans-2-hexenoyl-[acyl-carrier protein]
+  - "(2E)-hex-2-enoyl-[acyl-carrier protein]"
+
+"(2E)-octenoyl-[acyl-carrier protein]":
+  - trans-oct-2-enoyl-[acyl-carrier protein]
+  - 2-octenoyl-[acyl-carrier protein]
+  - trans-2-octenoyl-[acyl-carrier protein]
+  - "(2E)-oct-2-enoyl-[acyl-carrier protein]"
+
+"(2E)-decenoyl-[acyl-carrier protein]":
+  - trans-dec-2-enoyl-[acyl-carrier protein]
+  - trans-2-decenoyl-[acyl-carrier protein]
+  - 2-decenoyl-[acyl-carrier protein]
+  - "(2E)-dec-2-enoyl-[acyl-carrier protein]"
+
+"(2E)-dodecenoyl-[acyl-carrier protein]":
+  - trans-dodec-2-enoyl-[acyl-carrier protein]
+  - 2-dodecenoyl-[acyl-carrier protein]
+  - trans-2-dodecenoyl-[acyl-carrier protein]
+  - "(2E)-dodec-2-enoyl-[acyl-carrier protein]"
+
+"(2E)-tetradecenoyl-[acyl-carrier protein]":
+  - trans-tetradec-2-enoyl-[acyl-carrier protein]
+  - trans-Tetradec-2-enoyl-[acp]
+  - "(2E)-tetradec-2-enoyl-[acyl-carrier protein]"
+
+"(2E)-hexadecenoyl-[acyl-carrier protein]":
+  - trans-hexadec-2-enoyl-[acyl-carrier protein]
+  - trans-Hexadec-2-enoyl-[acp]
+  - "(2E)-hexadec-2-enoyl-[acyl-carrier protein]"
+
+"butanoyl-[acyl-carrier protein]":
+  - Butanoyl-ACP
+  - butanoyl-ACP
+  - butyryl-[acyl-carrier protein]
+  - butyryl-ACP
+
+"hexanoyl-[acyl-carrier protein]":
+  - Hexanoyl-ACP
+  - hexanoyl-ACP
+  - hexanoyl-[acyl-carrier protein]
+  - Hexanoyl-[acp]
+
+"octanoyl-[acyl-carrier protein]":
+  - Octanoyl-ACP
+  - octanoyl-ACP
+  - octanoyl-[acyl-carrier protein]
+  - an octanoyl-[acyl-carrier protein]
+
+"decanoyl-[acyl-carrier protein]":
+  - Decanoyl-ACP
+  - decanoyl-ACP
+  - decanoyl-[acyl-carrier protein]
+
+"dodecanoyl-[acyl-carrier protein]":
+  - Dodecanoyl-ACP
+  - dodecanoyl-ACP
+  - dodecanoyl-[acyl-carrier protein]
+  - a dodecanoyl-[acyl-carrier protein]
+
+"tetradecanoyl-[acyl-carrier protein]":
+  - Tetradecanoyl-ACP
+  - tetradecanoyl-ACP
+  - myristoyl-ACP
+  - myristoyl-[acyl-carrier protein]
+  - a tetradecanoyl-[acyl-carrier protein]
+  - Tetradecanoyl-[acp]
+
+"hexadecanoyl-[acyl-carrier protein]":
+  - Hexadecanoyl-ACP
+  - hexadecanoyl-ACP
+  - palmitoyl-ACP
+  - palmitoyl-[acyl-carrier protein]
+  - "palmitoyl-[acyl-carrier protein AcpM]"
+  - Hexadecanoyl-[acp]
+
+tetradecanoic acid:
+  - Myristic acid
+  - myristic acid
+  - C14:0
+  - tetradecanoic acid
+
+hexadecanoic acid:
+  - Palmitic acid
+  - palmitic acid
+  - C16:0
+  - hexadecanoic acid
+
+palmitoleic acid:
+  - Palmitoleic acid
+  - C16:1
+  - cis-9-hexadecenoic acid
+
 # Carbonate/bicarbonate
 hydrogencarbonate:
   - HCO3-
   - bicarbonate
   - HCO3
-  - carbonic acid (deprotonated)
+  - carbonic acid 
+  - carbonate 
+    
+# EC number aliases — bidirectional equivalences between EC numbers that
+# describe the same reaction chemistry under different classification schemes.
+ec_aliases:
+  EC 2.3.1.85: [EC 2.3.1.86]
+  EC 2.3.1.86: [EC 2.3.1.85]
+
+# Enzyme name fragment → cofactors expected in the active site (heuristic).
+enzyme_domain_cofactors:
+  synthase: [acp, acyl carrier protein]
+  carboxylase: [biotin]
