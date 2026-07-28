@@ -1,0 +1,108 @@
+# E. coli NON-OXIDATIVE PPP — same test as input_ecoli_nonox.yml but on the ECOLI
+# database. The db.csv run produced a chemically garbled network (RPI mis-templated
+# R5P->Xu5P, RPE empty, TKT given TAL chemistry, phantom threose-4-P, ribulose-5-P
+# orphaned). ecoli.csv has CORRECT templates for all four enzymes:
+#   rpiA (5.3.1.6): aldehydo-D-ribose 5-phosphate = D-Ribulose 5-phosphate
+#   rpe  (5.1.3.1): D-Ribulose 5-phosphate = D-xylulose 5-phosphate
+#   tktA (2.2.1.1): D-Sedoheptulose 7-P + GAP = aldehydo-D-ribose 5-P + D-xylulose 5-P
+#   talB (2.2.1.2): D-Sedoheptulose 7-P + GAP = D-Erythrose 4-P + beta-D-Fructose 6-P
+# Species labels + SMILES are the exact ecoli.csv canonical entries so reaction
+# matching is unambiguous. Cofactor-free; only these 4 EC numbers declared, so no
+# cofactor-using reaction can be discovered. Started displaced from equilibrium.
+# UNITS: concentrations mM.
+
+project: PPPNonOxEcoliDB
+project_directory: projects/PentosePhosphatePathway/nonox_ecolidb
+
+species:
+  # --- pentose pool: loaded (displaced from equilibrium) ---
+  - label: aldehydo-D-ribose 5-phosphate
+    concentration: 1.0
+    smiles: C([C@H]([C@H]([C@H](C=O)O)O)O)OP(=O)([O-])[O-]
+    reactive: true
+  - label: D-xylulose 5-phosphate
+    concentration: 1.0
+    smiles: C([C@H]([C@@H](C(=O)CO)O)O)OP(=O)(O)O
+    reactive: true
+  - label: D-Ribulose 5-phosphate
+    concentration: 0.5
+    smiles: OCC(=O)[C@H](O)[C@H](O)COP(O)(O)=O
+    reactive: true
+
+  # --- downstream sugar phosphates: near zero ---
+  - label: D-Sedoheptulose 7-phosphate
+    concentration: 0.01
+    smiles: OCC1(O)O[C@H](COP(O)(O)=O)[C@@H](O)[C@@H](O)[C@@H]1O
+    reactive: true
+  - label: D-Glyceraldehyde 3-phosphate
+    concentration: 0.01
+    smiles: OC(COP(O)(O)=O)C=O
+    reactive: true
+  - label: D-Erythrose 4-phosphate
+    concentration: 0.01
+    smiles: O[C@H](COP(O)(O)=O)[C@@H](O)C=O
+    reactive: true
+  - label: beta-D-Fructose 6-phosphate
+    concentration: 0.01
+    smiles: OC[C@@]1(O)O[C@H](COP(O)(O)=O)[C@@H](O)[C@@H]1O
+    reactive: true
+
+  - label: H2O
+    concentration: 55.5
+    smiles: O
+    reactive: false
+
+enzymes:
+  - label: Ribose-5-phosphate isomerase A
+    concentration: 1.0e-04
+    ecnumber: EC 5.3.1.6
+    reactive: true
+    amino_acid_sequence: MTQDELKKAVGWAALQYVQPGTIVGVGTGSTAAHFIDALGTMKGQIEGAVSSSDASTEKLKSLGIHVFDLNEVDSLGIYVDGADEINGHMQMIKGGGAALTREKIIASVAEKFICIADASKQVDILGKFPLPVEVIPMARSAVARQLVKLGGRPEYRQGVVTDNGNVILDVHGMEILDPIAMENAINAIPGVVTVGLFANRGADVALIGTPDGVKTIVK
+
+  - label: Ribulose-phosphate 3-epimerase
+    concentration: 1.0e-04
+    ecnumber: EC 5.1.3.1
+    reactive: true
+    amino_acid_sequence: MKQYLIAPSILSADFARLGEDTAKALAAGADVVHFDVMDNHYVPNLTIGPMVLKSLRNYGITAPIDVHLMVKPVDRIVPDFAAAGASIITFHPEASEHVDRTLQLIKENGCKAGLVFNPATPLSYLDYVMDKLDVILLMSVNPGFGGQSFIPQTLDKLREVRRRIDESGFDIRLEVDGGVKVNNIGEIAAAGADMFVAGSAIFDQPDYKKVIDEMRSELAKVSHE
+
+  - label: Transketolase
+    concentration: 1.0e-04
+    ecnumber: EC 2.2.1.1
+    reactive: true
+    amino_acid_sequence: MSSRKELANAIRALSMDAVQKAKSGHPGAPMGMADIAEVLWRDFLKHNPQNPSWADRDRFVLSNGHGSMLIYSLLHLTGYDLPMEELKNFRQLHSKTPGHPEVGYTAGVETTTGPLGQGIANAVGMAIAEKTLAAQFNRPGHDIVDHYTYAFMGDGCMMEGISHEVCSLAGTLKLGKLIAFYDDNGISIDGHVEGWFTDDTAMRFEAYGWHVIRDIDGHDAASIKRAVEEARAVTDKPSLLMCKTIIGFGSPNKAGTHDSHGAPLGDAEIALTREQLGWKYAPFEIPSEIYAQWDAKEAGQAKESAWNEKFAAYAKAYPQEAAEFTRRMKGEMPSDFDAKAKEFIAKLQANPAKIASRKASQNAIEAFGPLLPEFLGGSADLAPSNLTLWSGSKAINEDAAGNYIHYGVREFGMTAIANGISLHGGFLPYTSTFLMFVEYARNAVRMAALMKQRQVMVYTHDSIGLGEDGPTHQPVEQVASLRVTPNMSTWRPCDQVESAVAWKYGVERQDGPTALILSRQNLAQQERTEEQLANIARGGYVLKDCAGQPELIFIATGSEVELAVAAYEKLTAEGVKARVVSMPSTDAFDKQDAAYRESVLPKAVTARVAVEAGIADYWYKYVGLNGAIVGMTTFGESAPAELLFEEFGFTVDNVVAKAKELL
+
+  - label: Transaldolase B
+    concentration: 1.0e-04
+    ecnumber: EC 2.2.1.2
+    reactive: true
+    amino_acid_sequence: MTDKLTSLRQYTTVVADTGDIAAMKLYQPQDATTNPSLILNAAQIPEYRKLIDDAVAWAKQQSNDRAQQIVDATDKLAVNIGLEILKLVPGRISTEVDARLSYDTEASIAKAKRLIKLYNDAGISNDRILIKLASTWQGIRAAEQLEKEGINCNLTLLFSFAQARACAEAGVFLISPFVGRILDWYKANTDKKEYAPAEDPGVVSVSEIYQYYKEHGYETVVMGASFRNIGEILELAGCDRLTIAPALLKELAESEGAIERKLSYTGEVKARPARITESEFLWQHNQDPMAVDKLAEGIRKFAIDQEKLEKMIGDLL
+
+environment:
+  temperature: 310.15
+  pH: 7.5
+
+database:
+  name: ecoli
+
+settings:
+  simulation_mode: iterative
+  end_time: 2000.0
+  time_step: 20.0
+  toleranceMoveToCore: 0.1
+  toleranceKeepInEdge: 0
+  toleranceInterruptSimulation: 0.01
+  max_iterations: 5
+
+  ode_rtol: 1.0e-06
+  ode_atol: 1.0e-08
+  ode_method: BDF
+
+  estimate_kinetics: true
+  kinetics_estimator: catpred
+  kinetics_include_sd: true
+  smiles_mode: auto
+
+  save_simulation_profiles: true
+  save_ode_equations: true
+  saveEdgeSpecies: true
+  verbose: 20

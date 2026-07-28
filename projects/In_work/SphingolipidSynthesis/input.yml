@@ -1,0 +1,106 @@
+# Generated for BEES pathway testing
+# Pathway: Human de novo sphingolipid synthesis from palmitoyl-CoA and serine to ceramide.
+# Enzyme sequences: UniProt reviewed human entries
+# Metabolite SMILES: PubChem PUG REST when available, otherwise BEES db fallback for specialized compounds
+
+project: SphingolipidSynthesisHuman
+project_directory: projects/SphingolipidSynthesis
+species:
+- label: palmitoyl-CoA
+  concentration: 1.0
+  smiles: CCCCCCCCCCCCCCCC(=O)SCCNC(=O)CCNC(=O)C(C(C)(C)COP(=O)(O)OP(=O)(O)OCC1C(C(C(O1)N2C=NC3=C(N=CN=C32)N)O)OP(=O)(O)O)O
+  reactive: true
+- label: L-serine
+  concentration: 1.0
+  smiles: C(C(C(=O)O)N)O
+  reactive: true
+- label: 3-dehydro-D-sphinganine
+  concentration: 0.25
+  smiles: CCCCCCCCCCCCCCCC(=O)C(CO)N
+  reactive: true
+- label: sphinganine
+  concentration: 0.5
+  smiles: CCCCCCCCCCCCCCCC(C(CO)N)O
+  reactive: true
+- label: N-palmitoylsphinganine
+  concentration: 0.25
+  smiles: CCCCCCCCCCCCCCCC(C(CO)NC(=O)CCCCCCCCCCCCCCC)O
+  reactive: true
+- label: a dihydroceramide
+  concentration: 0.25
+  smiles: CCCCCCCCCCCCCCCC(C(CO)NC(=O)CCCCCCCCCCCCCCC)O
+  reactive: true
+- label: a (4E)-sphing-4-enine ceramide
+  concentration: 0.25
+  smiles: CCCCCCCCCCCCCCCC(=O)NC(CO)C(C=CCCCCCCCCCCCCC)O
+  reactive: true
+- label: NADPH
+  concentration: 0.2
+  smiles: C1C=CN(C=C1C(=O)N)C2C(C(C(O2)COP(=O)(O)OP(=O)(O)OCC3C(C(C(O3)N4C=NC5=C(N=CN=C54)N)OP(=O)(O)O)O)O)O
+  reactive: false
+- label: NADP+
+  concentration: 0.2
+  smiles: C1=CC(=C[N+](=C1)C2C(C(C(O2)COP(=O)([O-])OP(=O)(O)OCC3C(C(C(O3)N4C=NC5=C(N=CN=C54)N)OP(=O)(O)O)O)O)O)C(=O)N
+  reactive: false
+- label: CoA
+  concentration: 0.2
+  smiles: CC(C)(COP(=O)(O)OP(=O)(O)OCC1C(C(C(O1)N2C=NC3=C(N=CN=C32)N)O)OP(=O)(O)O)C(C(=O)NCCC(=O)NCCS)O
+  reactive: false
+- label: CO2
+  concentration: 0.1
+  smiles: C(=O)=O
+  reactive: false
+- label: O2
+  concentration: 0.2
+  smiles: O=O
+  reactive: false
+- label: H2O
+  concentration: 55.5
+  smiles: O
+  reactive: false
+enzymes:
+- label: Serine palmitoyltransferase 2
+  concentration: 1.0e-06
+  ecnumber: EC 2.3.1.50
+  reactive: true
+  amino_acid_sequence: MRPEPGGCCCRRTVRANGCVANGEVRNGYVRSSAAAAAAAAAGQIHHVTQNGGLYKRPFNEAFEETPMLVAVLTYVGYGVLTLFGYLRDFLRYWRIEKCHHATEREEQKDFVSLYQDFENFYTRNLYMRIRDNWNRPICSVPGARVDIMERQSHDYNWSFKYTGNIIKGVINMGSYNYLGFARNTGSCQEAAAKVLEEYGAGVCSTRQEIGNLDKHEELEELVARFLGVEAAMAYGMGFATNSMNIPALVGKGCLILSDELNHASLVLGARLSGATIRIFKHNNMQSLEKLLKDAIVYGQPRTRRPWKKILILVEGIYSMEGSIVRLPEVIALKKKYKAYLYLDEAHSIGALGPTGRGVVEYFGLDPEDVDVMMGTFTKSFGASGGYIGGKKELIDYLRTHSHSAVYATSLSPPVVEQIITSMKCIMGQDGTSLGKECVQQLAENTRYFRRRLKEMGFIIYGNEDSPVVPLMLYMPAKIGAFGREMLKRNIGVVVVGFPATPIIESRARFCLSAAHTKEILDTALKEIDEVGDLLQLKYSRHRLVPLLDRPFDETTYEETED
+- label: 3-ketodihydrosphingosine reductase
+  concentration: 1.0e-06
+  ecnumber: EC 1.1.1.102
+  reactive: true
+  amino_acid_sequence: MLLLAAAFLVAFVLLLYMVSPLISPKPLALPGAHVVVTGGSSGIGKCIAIECYKQGAFITLVARNEDKLLQAKKEIEMHSINDKQVVLCISVDVSQDYNQVENVIKQAQEKLGPVDMLVNCAGMAVSGKFEDLEVSTFERLMSINYLGSVYPSRAVITTMKERRVGRIVFVSSQAGQLGLFGFTAYSASKFAIRGLAEALQMEVKPYNVYITVAYPPDTDTPGFAEENRTKPLETRLISETTSVCKPEQVAKQIVKDAIQGNFNSSLGSDGYMLSALTCGMAPVTSITEGLQQVVTMGLFRTIALFYLGSFDSIVRRCMMQREKSENADKTA
+- label: Ceramide synthase 2
+  concentration: 1.0e-06
+  ecnumber: EC 2.3.1.297
+  reactive: true
+  amino_acid_sequence: MLQTLYDYFWWERLWLPVNLTWADLEDRDGRVYAKASDLYITLPLALLFLIVRYFFELYVATPLAALLNIKEKTRLRAPPNATLEHFYLTSGKQPKQVEVELLSRQSGLSGRQVERWFRRRRNQDRPSLLKKFREASWRFTFYLIAFIAGMAVIVDKPWFYDMKKVWEGYPIQSTIPSQYWYYMIELSFYWSLLFSIASDVKRKDFKEQIIHHVATIILISFSWFANYIRAGTLIMALHDSSDYLLESAKMFNYAGWKNTCNNIFIVFAIVFIITRLVILPFWILHCTLVYPLELYPAFFGYYFFNSMMGVLQLLHIFWAYLILRMAHKFITGKLVEDERSDREETESSEGEEAAAGGGAKSRPLANGHPILNNNHRKND
+- label: Sphingolipid delta(4)-desaturase DES1
+  concentration: 1.0e-06
+  ecnumber: EC 1.14.19.17
+  reactive: true
+  amino_acid_sequence: MGSRVSREDFEWVYTDQPHADRRREILAKYPEIKSLMKPDPNLIWIIIMMVLTQLGAFYIVKDLDWKWVIFGAYAFGSCINHSMTLAIHEIAHNAAFGNCKAMWNRWFGMFANLPIGIPYSISFKRYHMDHHRYLGADGVDVDIPTDFEGWFFCTAFRKFIWVILQPLFYAFRPLFINPKPITYLEVINTVAQVTFDILIYYFLGIKSLVYMLAASLLGLGLHPISGHFIAEHYMFLKGHETYSYYGPLNLLTFNVGYHNEHHDFPNIPGKSLPLVRKIAAEYYDNLPHYNSWIKVLYDFVMDDTISPYSRMKRHQKGEMVLE
+environment:
+  temperature: 310.0
+  pH: 7.4
+database:
+  name: db
+settings:
+  # Iterative mode
+  end_time: 1000.0
+  simulation_mode: iterative
+  time_step: 2.0
+  toleranceMoveToCore: 0.1
+  toleranceKeepInEdge: 0
+  max_iterations: 20
+
+  # Kinetics estimation (needed for flux computation)
+  estimate_kinetics: true
+  kinetics_estimator: catpred
+  kinetics_include_sd: true
+  smiles_mode: auto
+
+  # Output
+  save_simulation_profiles: true
+  save_ode_equations: true
+  saveEdgeSpecies: true
+  verbose: 20

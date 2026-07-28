@@ -1,0 +1,71 @@
+{
+  "generated_on": "2026-02-16",
+  "enzymes": {
+    "Serine palmitoyltransferase 2": {
+      "uniprot_accession": "O15270"
+    },
+    "3-ketodihydrosphingosine reductase": {
+      "uniprot_accession": "Q06136"
+    },
+    "Ceramide synthase 2": {
+      "uniprot_accession": "Q96G23"
+    },
+    "Sphingolipid delta(4)-desaturase DES1": {
+      "uniprot_accession": "O15121"
+    }
+  },
+  "species": {
+    "palmitoyl-CoA": {
+      "smiles_source": "pubchem",
+      "query": "palmitoyl-CoA"
+    },
+    "L-serine": {
+      "smiles_source": "pubchem",
+      "query": "L-serine"
+    },
+    "3-dehydro-D-sphinganine": {
+      "smiles_source": "pubchem",
+      "query": "3-ketosphinganine"
+    },
+    "sphinganine": {
+      "smiles_source": "pubchem",
+      "query": "sphinganine"
+    },
+    "N-palmitoylsphinganine": {
+      "smiles_source": "pubchem",
+      "query": "N-palmitoylsphinganine"
+    },
+    "a dihydroceramide": {
+      "smiles_source": "pubchem",
+      "query": "N-palmitoylsphinganine"
+    },
+    "a (4E)-sphing-4-enine ceramide": {
+      "smiles_source": "pubchem",
+      "query": "N-palmitoylsphingosine"
+    },
+    "NADPH": {
+      "smiles_source": "pubchem",
+      "query": "NADPH"
+    },
+    "NADP+": {
+      "smiles_source": "pubchem",
+      "query": "NADP+"
+    },
+    "CoA": {
+      "smiles_source": "pubchem",
+      "query": "coenzyme A"
+    },
+    "CO2": {
+      "smiles_source": "pubchem",
+      "query": "carbon dioxide"
+    },
+    "O2": {
+      "smiles_source": "pubchem",
+      "query": "oxygen"
+    },
+    "H2O": {
+      "smiles_source": "pubchem",
+      "query": "water"
+    }
+  }
+}

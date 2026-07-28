@@ -1,51 +1,68 @@
-# BEES Input File (commented template)
-# This template reflects the current project status:
-# - Database is db (main reaction database)
-# - Kinetics estimation uses CatPred via settings
-# - Solver is not configured in the input
-# - Enzymes can include amino_acid_sequence (or BEES will try to fetch it by EC number)
+## BEES Input File (commented template; schema-accurate)
+##
+## IMPORTANT
+## - This file is meant to be COPY/PASTE friendly, but it must also validate against
+##   the current BEES input schema (`bees/schema.py`).
+## - BEES forbids unknown keys in each section. So things like `inchi`, `adjlist`,
+##   `ionic_strength`, etc. are NOT allowed in the YAML (even if they are chemically useful).
+##
 
-# --- Project Information ---
-# 'project': Required. The name of your BEES project. Max length is 255 characters.
+## --- Project Information ---
+## `project` (required): project name (max length 255)
 project: MyFirstBEESProject
+## `project_directory` (optional): where outputs go, relative or absolute
 project_directory: projects/commented
 
-# --- Species Definition ---
-# 'species': Required. A list of chemical species involved in your biochemical system.
+## --- Species Definition ---
+## `species` (required): list of species in the system.
+## Allowed keys per species (schema): label, concentration, smiles, charge, constant,
+## reactive, observable, solvent.
 species:
   - label: Glucose
-    concentration: 0.01  # Required. Float or (min, max).
+    ## concentration (required): float (mM) or a tuple (min, max), both > 0
+    concentration: 0.01
+    ## smiles (optional but recommended): validated by RDKit if present
     smiles: C(C1C(C(C(C(O1)CO)O)O)O)O
-    # inchi: InChI=1S/C6H12O6/c7-1-2-3(8)4(9)5(10)6(11)12-3/h2-6,8-11H,1H2/t2-,3-,4+,5-,6?/m1/s1
-    # adjlist: Optional adjacency list representation.
+    ## charge (optional): defaults to 0
     charge: 0
+    ## constant (optional): if true, species must be non-reactive and non-observable
     constant: false
+    ## reactive (optional): if false, species can be held out of reaction discovery
     reactive: true
+    ## observable (optional): whether to include in plots/outputs by default
     observable: true
+    ## solvent (optional): flag for solvent-like species
     solvent: false
-    # xyz: Optional. XYZ coordinates (not used yet).
 
   - label: ATP
-    concentration: 0.005
-    smiles: N1C=NC2=C1N=CN=C2C3C(C(C(O3)COP(=O)(O)OP(=O)(O)OP(=O)(O)O)O)O
+    concentration: 5.0
+    smiles: C1=NC(=C2C(=N1)N(C=N2)C3C(C(C(O3)COP(=O)(O)OP(=O)(O)OP(=O)(O)O)O)O)N
     reactive: true
     observable: true
 
-  - label: Water
+  - label: H2O
     concentration: 55.5
     smiles: O
     solvent: true
+    reactive: false
+    observable: false
+
+  - label: NAD+
+    concentration: 0.5
+    smiles: C1=CC(=C[N+](=C1)[C@H]2[C@@H]([C@@H]([C@H](O2)COP(=O)([O-])OP(=O)([O-])OC[C@@H]3[C@H]([C@H]([C@@H](O3)N4C=NC5=C(N=CN=C54)N)O)O)O)O)C(=O)N
     reactive: true
     observable: true
 
-# --- Enzyme Definition ---
-# 'enzymes': Required. Enzymes inherit Species attributes.
+## --- Enzyme Definition ---
+## `enzymes` (required): enzymes are species + optional enzyme metadata.
+## Allowed keys per enzyme (schema): everything in species + ecnumber + amino_acid_sequence.
 enzymes:
   - label: Hexokinase
     concentration: 1e-6
+    ## ecnumber (optional): must match pattern "EC x.x.x.x"
     ecnumber: EC 2.7.1.1
     reactive: true
-    # Optional. If missing, BEES will try to fetch from the database using the EC number.
+    ## amino_acid_sequence (optional): uppercase 1-letter amino acids only
     amino_acid_sequence: MIAAQLLAYYFTELKDDQVKKIDKYLYAMRLSDETLIDIMTRFRKEMKNGLSRDFNPTATVKMLPTFVRSIPDGSEKGDFIALDLGGSSFRILRVQVNHEKNQNVHMESEVYDTPENIVHGSGSQLFDHVAECLGDFMEKRKIKDKKLPVGFTFSFPCQQSKIDEAILITWTKRFKASGVEGADVVKLLNKAIKKRGDYDANIVAVVNDTVGTMMTCGYDDQHCEVGLIIGTGTNACYMEELRHIDLVEGDEGRMCINTEWGAFGDDGSLEDIRTEFDREIDRGSLNPGKQLFEKMVSGMYLGELVRLILVKMAKEGLLFEGRITPELLTRGKFNTSDVSAIEKNKEGLHNAKEILTRLGVEPSDDDCVSVQHVCTIVSFRSANLVAATLGAILNRLRDNKGTPRLRTTVGVDGSLYKTHPQYSRRFHKTLRRLVPDSDVRFLLSESGSGKGAAMVTAVAYRLAEQHRQIEETLAHFHLTKDMLLEVKKRMRAEMELGLRKQTHNNAVVKMLPSFVRRTPDGTENGDFLALDLGGTNFRVLLVKIRSGKKRTVEMHNKIYAIPIEIMQGTGEELFDHIVSCISDFLDYMGIKGPRMPLGFTFSFPCQQTSLDAGILITWTKGFKATDCVGHDVVTLLRDAIKRREEFDLDVVAVVNDTVGTMMTCAYEEPTCEVGLIVGTGSNACYMEEMKNVEMVEGDQGQMCINMEWGAFGDNGCLDDIRTHYDRLVDEYSLNAGKQRYEKMISGMYLGEIVRNILIDFTKKGFLFRGQISETLKTRGIFETKFLSQIESDRLALLQVRAILQQLGLNSTCDDSILVKTVCGVVSRRAAQLCGAGMAAVVDKIRENRGLDRLNVTVGVDGTLYKLHPHFSRIMHQTVKELSPKCNVSFLLSEDGSGKGAALITAVGVRLRTEASS
 
   - label: Phosphofructokinase
@@ -54,27 +71,120 @@ enzymes:
     reactive: true
     amino_acid_sequence: ERRFQDAVRLRGRSFAGNLNTYKRLAIKLPDDQIPKTNCNVAVINVGAPAAGMNAGVRSAVRVGIADGHRMLAIYDGFDGFAKGQIKEIGWTDVGGWTGQGGSILGTKRVLPGKYLEEIATQMRTHSINALLIIGGFEAYLGLLELSAAREKHEEFCVPMVMVPATVSNNVPGSDFSIGADTALNTITDTCDRIKQSASGTKRRVFIIETMGGYCGYLANMGGLAAGADAAYIFEEPFDIRDLQSNVEHLTEKMKTTIQRGLVLRNESCSENYTTDFIYQLYSEEGKGVFDCRKNVLGHMQQGGAPSPFDRNFGTKISARAMEWITEKLKEARGRGKKFTTDDSICVLGISKRNVIFQPVAELKKQTDFEHRIPKEQWWLKLRPLMKILAKYKASYDVSDSGQLEHVQPWSV
 
-# --- Environment Settings ---
+## --- Environment ---
+## Allowed keys per environment (schema): temperature, pH
 environment:
+  ## temperature: float in K, or tuple (min, max), both > 0
   temperature: 310.15
+  ## pH: float in [0, 14], or tuple (min, max)
   pH: 7.4
-  # ionic_strength: 0.15
-  # oxygen_level: 0.21
-  # seed_mechanisms: []
 
-# --- Database Settings ---
+## --- Database ---
+## Allowed keys (schema): name
 database:
+  ## name: database identifier (e.g., `db`)
   name: db
 
-# --- Application Settings ---
+## --- Settings (all current schema attributes) ---
 settings:
+  ## end_time: simulation end time (seconds); must be > 0. Optional — see the
+  ## "Termination criteria" block below; at least one termination criterion must
+  ## be set for iterative mode.
+  end_time: 1000.0
+  ## simulation_mode: 'iterative' (RMG-style enlargement with ODE) or 'batch' (reaction discovery only).
+  ## null auto-detects: iterative when ANY termination criterion is set
+  ## (end_time, termination_conversion, or termination_rate_ratio) and
+  ## toleranceMoveToCore > 0; batch otherwise.
+  simulation_mode: iterative
+  ## time_step: sampling / step size used by stepwise integration; must be > 0 and < end_time
+  time_step: 2.0
+
+  ## estimate_kinetics: if true, BEES estimates missing kinetic parameters
   estimate_kinetics: true
+  ## kinetics_estimator: which estimator to use (currently supports: catpred)
   kinetics_estimator: catpred
-  kinetics_include_sd: false
+  ## kinetics_include_sd: if true, include uncertainty (SD) fields when available
+  kinetics_include_sd: true
+  ## smiles_mode: how BEES resolves missing/ambiguous SMILES ('auto' or 'interactive')
+  smiles_mode: auto
+
+  ## toleranceKeepInEdge: flux cutoff below which edge items stay in edge (>= 0)
+  toleranceKeepInEdge: 1.0e-10
+  ## toleranceMoveToCore: flux cutoff above which items move to core (> 0)
+  toleranceMoveToCore: 0.1
+  ## toleranceInterruptSimulation: early-stop threshold for ODE pass based on flux ratio
+  ## If omitted, BEES uses toleranceMoveToCore (per schema comment in `bees/schema.py`)
+  toleranceInterruptSimulation: 0.1
+
+  ## minEdgeIterationsForPrune: do not prune until edge has existed for at least this many iterations
+  minEdgeIterationsForPrune: 2
+  ## minCoreSpeciesForPrune: do not prune until core has at least this many species
+  minCoreSpeciesForPrune: 0
+
+  ## Termination criteria (RMG-style). At least ONE of end_time,
+  ## termination_conversion, or termination_rate_ratio must be set for
+  ## iterative mode. The simulation stops as soon as any criterion is met.
+  ## If end_time is unset, the enlarger uses a 1e6 s safety-valve per pass
+  ## and relies on conversion / rate-ratio to terminate (bounded by max_iterations).
+
+  ## termination_conversion: mapping label -> required conversion fraction (0..1)
+  ## Example:
+  ## termination_conversion:
+  ##   Glucose: 0.9
+  termination_conversion: null
+
+  ## termination_rate_ratio: stop when (current characteristic flux) / (peak
+  ## characteristic flux observed so far) drops below this threshold (0..1).
+  ## Matches RMG's terminationRateRatio semantics.
+  termination_rate_ratio: null
+
+  ## max_edge_species: optional cap on edge size (null = no cap)
+  max_edge_species: null
+  ## max_num_objects_per_iter: max promotions per iteration (> 0)
+  max_num_objects_per_iter: 10
+  ## abs_flux_floor: when core characteristic flux is ~0, promote only if abs flux exceeds this floor (> 0)
+  abs_flux_floor: 1.0e-12
+  ## filter_reactions: if true, apply reaction filtering heuristics
+  filter_reactions: true
+  ## max_iterations: hard cap on enlargement iterations (> 0)
+  max_iterations: 20
+
+  ## ode_method: scipy.solve_ivp method name (e.g., 'BDF', 'LSODA', 'Radau'); null uses simulator defaults
+  ode_method: null
+  ## ode_rtol: relative tolerance for the ODE solver; null uses simulator defaults
+  ode_rtol: null
+  ## ode_atol: absolute tolerance for the ODE solver; null uses simulator defaults
+  ode_atol: null
+  ## max_wall_time_per_iteration: optional wall-clock cap (seconds) for one enlargement pass; null = no limit
+  max_wall_time_per_iteration: null
+
+  ## verbose: log level (10, 20, 30, 40, 50)
   verbose: 20
-  # end_time: 3600.0
-  # time_step: 1.0
-  # time_units: s
-  # output_directory: /path/to/custom/output/folder
-  # export_sbml: false
-  # sbml_filename: model.xml
+  ## saveEdgeSpecies: if true, write edge species/reactions outputs
+  saveEdgeSpecies: true
+  ## output_directory: optional override for output folder; null uses project_directory defaults
+  output_directory: null
+
+  ## save_simulation_profiles: save `simulation_profiles.csv`
+  save_simulation_profiles: true
+  ## save_simulation_plots: save time-series plots (if enabled by the pipeline)
+  save_simulation_plots: true
+
+  ## save_reaction_tree_plots: save reaction tree visualization(s)
+  save_reaction_tree_plots: false
+  ## reaction_tree_layout: 'graphviz' or 'simple' layout engine
+  reaction_tree_layout: graphviz
+  ## reaction_tree_rankdir: graph direction ('TB', 'BT', 'LR', 'RL')
+  reaction_tree_rankdir: TB
+  ## reaction_tree_fontsize: font size (8..24)
+  reaction_tree_fontsize: 8
+
+  ## plot_max_species: optional cap for number of species shown in plots; null = no cap
+  plot_max_species: null
+  ## plot_exclude_enzymes: if true, omit enzymes from plots by default
+  plot_exclude_enzymes: true
+  ## plot_exclude_cofactors: if true, omit common cofactors from plots by default
+  plot_exclude_cofactors: true
+
+  ## save_ode_equations: save ODE equations text export(s)
+  save_ode_equations: true

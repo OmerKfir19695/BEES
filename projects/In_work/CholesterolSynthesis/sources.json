@@ -1,0 +1,137 @@
+{
+  "generated_on": "2026-02-16",
+  "enzymes": {
+    "Acetyl-CoA acetyltransferase, cytosolic": {
+      "uniprot_accession": "Q9BWD1"
+    },
+    "Hydroxymethylglutaryl-CoA synthase, cytoplasmic": {
+      "uniprot_accession": "Q01581"
+    },
+    "3-hydroxy-3-methylglutaryl-coenzyme A reductase": {
+      "uniprot_accession": "P04035"
+    },
+    "Mevalonate kinase": {
+      "uniprot_accession": "Q03426"
+    },
+    "Phosphomevalonate kinase": {
+      "uniprot_accession": "Q15126"
+    },
+    "Diphosphomevalonate decarboxylase": {
+      "uniprot_accession": "P53602"
+    },
+    "Farnesyl pyrophosphate synthase": {
+      "uniprot_accession": "P14324"
+    },
+    "Squalene synthase": {
+      "uniprot_accession": "P37268"
+    },
+    "Squalene monooxygenase": {
+      "uniprot_accession": "Q14534"
+    },
+    "Lanosterol synthase": {
+      "uniprot_accession": "P48449"
+    }
+  },
+  "species": {
+    "acetyl-CoA": {
+      "smiles_source": "pubchem",
+      "query": "acetyl-CoA"
+    },
+    "acetoacetyl-CoA": {
+      "smiles_source": "pubchem",
+      "query": "acetoacetyl-CoA"
+    },
+    "(S)-3-hydroxy-3-methylglutaryl-CoA": {
+      "smiles_source": "pubchem",
+      "query": "hydroxymethylglutaryl-CoA"
+    },
+    "(R)-mevalonate": {
+      "smiles_source": "pubchem",
+      "query": "mevalonic acid"
+    },
+    "(R)-5-phosphomevalonate": {
+      "smiles_source": "pubchem",
+      "query": "mevalonate 5-phosphate"
+    },
+    "(R)-5-diphosphomevalonate": {
+      "smiles_source": "pubchem",
+      "query": "mevalonate 5-diphosphate"
+    },
+    "Isopentenyl diphosphate": {
+      "smiles_source": "pubchem",
+      "query": "isopentenyl diphosphate"
+    },
+    "dimethylallyl diphosphate": {
+      "smiles_source": "pubchem",
+      "query": "dimethylallyl diphosphate"
+    },
+    "(2E,6E)-farnesyl diphosphate": {
+      "smiles_source": "pubchem",
+      "query": "farnesyl pyrophosphate"
+    },
+    "squalene": {
+      "smiles_source": "pubchem",
+      "query": "squalene"
+    },
+    "(3S)-2,3-epoxy-2,3-dihydrosqualene": {
+      "smiles_source": "pubchem",
+      "query": "2,3-oxidosqualene"
+    },
+    "lanosterol": {
+      "smiles_source": "pubchem",
+      "query": "lanosterol"
+    },
+    "cholesterol": {
+      "smiles_source": "pubchem",
+      "query": "cholesterol"
+    },
+    "ATP": {
+      "smiles_source": "pubchem",
+      "query": "ATP"
+    },
+    "ADP": {
+      "smiles_source": "pubchem",
+      "query": "ADP"
+    },
+    "NADP+": {
+      "smiles_source": "pubchem",
+      "query": "NADP+"
+    },
+    "NADPH": {
+      "smiles_source": "pubchem",
+      "query": "NADPH"
+    },
+    "NAD+": {
+      "smiles_source": "pubchem",
+      "query": "NAD+"
+    },
+    "NADH": {
+      "smiles_source": "pubchem",
+      "query": "NADH"
+    },
+    "CoA": {
+      "smiles_source": "pubchem",
+      "query": "coenzyme A"
+    },
+    "diphosphate": {
+      "smiles_source": "pubchem",
+      "query": "pyrophosphate"
+    },
+    "phosphate": {
+      "smiles_source": "pubchem",
+      "query": "phosphate"
+    },
+    "CO2": {
+      "smiles_source": "pubchem",
+      "query": "carbon dioxide"
+    },
+    "O2": {
+      "smiles_source": "pubchem",
+      "query": "oxygen"
+    },
+    "H2O": {
+      "smiles_source": "pubchem",
+      "query": "water"
+    }
+  }
+}

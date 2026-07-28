@@ -1,0 +1,111 @@
+{
+  "generated_on": "2026-02-16",
+  "enzymes": {
+    "Citrate synthase, mitochondrial": {
+      "uniprot_accession": "O75390"
+    },
+    "Aconitate hydratase, mitochondrial": {
+      "uniprot_accession": "Q99798"
+    },
+    "Isocitrate dehydrogenase [NAD] subunit alpha, mitochondrial": {
+      "uniprot_accession": "P50213"
+    },
+    "2-oxoglutarate dehydrogenase complex component E1": {
+      "uniprot_accession": "Q02218"
+    },
+    "Succinate--CoA ligase [ADP/GDP-forming] subunit alpha, mitochondrial": {
+      "uniprot_accession": "P53597"
+    },
+    "Succinate dehydrogenase [ubiquinone] flavoprotein subunit, mitochondrial": {
+      "uniprot_accession": "P31040"
+    },
+    "Fumarate hydratase, mitochondrial": {
+      "uniprot_accession": "P07954"
+    },
+    "Malate dehydrogenase, mitochondrial": {
+      "uniprot_accession": "P40926"
+    }
+  },
+  "species": {
+    "acetyl-CoA": {
+      "smiles_source": "pubchem",
+      "query": "acetyl-CoA"
+    },
+    "oxaloacetate": {
+      "smiles_source": "pubchem",
+      "query": "oxaloacetate"
+    },
+    "citrate": {
+      "smiles_source": "pubchem",
+      "query": "citrate"
+    },
+    "isocitrate": {
+      "smiles_source": "pubchem",
+      "query": "isocitrate"
+    },
+    "2-oxoglutarate": {
+      "smiles_source": "pubchem",
+      "query": "2-oxoglutarate"
+    },
+    "succinyl-CoA": {
+      "smiles_source": "pubchem",
+      "query": "succinyl-CoA"
+    },
+    "succinate": {
+      "smiles_source": "pubchem",
+      "query": "succinate"
+    },
+    "fumarate": {
+      "smiles_source": "pubchem",
+      "query": "fumarate"
+    },
+    "(S)-malate": {
+      "smiles_source": "pubchem",
+      "query": "L-malic acid"
+    },
+    "CoA": {
+      "smiles_source": "pubchem",
+      "query": "coenzyme A"
+    },
+    "H2O": {
+      "smiles_source": "pubchem",
+      "query": "water"
+    },
+    "NAD+": {
+      "smiles_source": "pubchem",
+      "query": "NAD+"
+    },
+    "NADH": {
+      "smiles_source": "pubchem",
+      "query": "NADH"
+    },
+    "GDP": {
+      "smiles_source": "pubchem",
+      "query": "GDP"
+    },
+    "GTP": {
+      "smiles_source": "pubchem",
+      "query": "GTP"
+    },
+    "ADP": {
+      "smiles_source": "pubchem",
+      "query": "ADP"
+    },
+    "ATP": {
+      "smiles_source": "pubchem",
+      "query": "ATP"
+    },
+    "FAD": {
+      "smiles_source": "pubchem",
+      "query": "FAD"
+    },
+    "FADH2": {
+      "smiles_source": "pubchem",
+      "query": "FADH2"
+    },
+    "phosphate": {
+      "smiles_source": "pubchem",
+      "query": "phosphate"
+    }
+  }
+}

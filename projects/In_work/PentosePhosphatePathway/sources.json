@@ -1,0 +1,84 @@
+{
+  "generated_on": "2026-02-16",
+  "enzymes": {
+    "Glucose-6-phosphate 1-dehydrogenase": {
+      "uniprot_accession": "P11413"
+    },
+    "6-phosphogluconolactonase": {
+      "uniprot_accession": "O95336"
+    },
+    "6-phosphogluconate dehydrogenase, decarboxylating": {
+      "uniprot_accession": "P52209"
+    },
+    "Ribose-5-phosphate isomerase": {
+      "uniprot_accession": "P49247"
+    },
+    "Ribulose-phosphate 3-epimerase": {
+      "uniprot_accession": "Q96AT9"
+    },
+    "Transketolase": {
+      "uniprot_accession": "P29401"
+    },
+    "Transaldolase": {
+      "uniprot_accession": "P37837"
+    }
+  },
+  "species": {
+    "D-glucose 6-phosphate": {
+      "smiles_source": "pubchem",
+      "query": "glucose 6-phosphate"
+    },
+    "6-phospho-D-glucono-1,5-lactone": {
+      "smiles_source": "pubchem",
+      "query": "6-phosphoglucono-delta-lactone"
+    },
+    "6-phospho-D-gluconate": {
+      "smiles_source": "pubchem",
+      "query": "6-phosphogluconic acid"
+    },
+    "D-ribulose 5-phosphate": {
+      "smiles_source": "pubchem",
+      "query": "ribulose 5-phosphate"
+    },
+    "D-Ribose 5-phosphate": {
+      "smiles_source": "pubchem",
+      "query": "ribose 5-phosphate"
+    },
+    "D-xylulose 5-phosphate": {
+      "smiles_source": "pubchem",
+      "query": "xylulose 5-phosphate"
+    },
+    "sedoheptulose 7-phosphate": {
+      "smiles_source": "pubchem",
+      "query": "sedoheptulose 7-phosphate"
+    },
+    "D-glyceraldehyde 3-phosphate": {
+      "smiles_source": "pubchem",
+      "query": "glyceraldehyde 3-phosphate"
+    },
+    "D-erythrose 4-phosphate": {
+      "smiles_source": "pubchem",
+      "query": "erythrose 4-phosphate"
+    },
+    "D-fructose 6-phosphate": {
+      "smiles_source": "pubchem",
+      "query": "fructose 6-phosphate"
+    },
+    "NADP+": {
+      "smiles_source": "pubchem",
+      "query": "NADP+"
+    },
+    "NADPH": {
+      "smiles_source": "pubchem",
+      "query": "NADPH"
+    },
+    "H2O": {
+      "smiles_source": "pubchem",
+      "query": "water"
+    },
+    "CO2": {
+      "smiles_source": "pubchem",
+      "query": "carbon dioxide"
+    }
+  }
+}

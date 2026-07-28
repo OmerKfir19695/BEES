@@ -1,0 +1,71 @@
+{
+  "generated_on": "2026-02-16",
+  "enzymes": {
+    "Choline kinase alpha": {
+      "uniprot_accession": "P35790"
+    },
+    "Choline-phosphate cytidylyltransferase A": {
+      "uniprot_accession": "P49585"
+    },
+    "Cholinephosphotransferase 1": {
+      "uniprot_accession": "Q8WUD6"
+    },
+    "Glycerophosphocholine cholinephosphodiesterase ENPP6": {
+      "uniprot_accession": "Q6UWR7"
+    }
+  },
+  "species": {
+    "choline": {
+      "smiles_source": "pubchem",
+      "query": "choline"
+    },
+    "phosphocholine": {
+      "smiles_source": "pubchem",
+      "query": "phosphocholine"
+    },
+    "CDP-choline": {
+      "smiles_source": "pubchem",
+      "query": "CDP-choline"
+    },
+    "1,2-diacyl-sn-glycerol": {
+      "smiles_source": "pubchem",
+      "query": "1,2-dipalmitoyl-sn-glycerol"
+    },
+    "a phosphatidylcholine": {
+      "smiles_source": "pubchem",
+      "query": "1,2-dipalmitoyl-sn-glycero-3-phosphocholine"
+    },
+    "sn-glycero-3-phosphocholine": {
+      "smiles_source": "pubchem",
+      "query": "glycerophosphocholine"
+    },
+    "glycerol": {
+      "smiles_source": "pubchem",
+      "query": "glycerol"
+    },
+    "ATP": {
+      "smiles_source": "pubchem",
+      "query": "ATP"
+    },
+    "ADP": {
+      "smiles_source": "pubchem",
+      "query": "ADP"
+    },
+    "CTP": {
+      "smiles_source": "pubchem",
+      "query": "CTP"
+    },
+    "CMP": {
+      "smiles_source": "pubchem",
+      "query": "CMP"
+    },
+    "diphosphate": {
+      "smiles_source": "pubchem",
+      "query": "pyrophosphate"
+    },
+    "H2O": {
+      "smiles_source": "pubchem",
+      "query": "water"
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "generated_on": "2026-02-16",
+  "enzymes": {
+    "Very long chain fatty acid elongase 6": {
+      "uniprot_accession": "Q9H5J4"
+    },
+    "Very-long-chain 3-oxoacyl-CoA reductase": {
+      "uniprot_accession": "Q53GQ0"
+    },
+    "Very-long-chain (3R)-3-hydroxyacyl-CoA dehydratase 3": {
+      "uniprot_accession": "Q9P035"
+    },
+    "Very-long-chain enoyl-CoA reductase": {
+      "uniprot_accession": "Q9NZ01"
+    }
+  },
+  "species": {
+    "palmitoyl-CoA": {
+      "smiles_source": "pubchem",
+      "query": "palmitoyl-CoA"
+    },
+    "malonyl-CoA": {
+      "smiles_source": "pubchem",
+      "query": "malonyl-CoA"
+    },
+    "3-oxostearoyl-CoA": {
+      "smiles_source": "pubchem",
+      "query": "3-oxostearoyl-CoA"
+    },
+    "3-hydroxystearoyl-CoA": {
+      "smiles_source": "pubchem",
+      "query": "3-hydroxystearoyl-CoA"
+    },
+    "(2E)-Octadecenoyl-CoA": {
+      "smiles_source": "pubchem",
+      "query": "trans-2-octadecenoyl-CoA"
+    },
+    "stearoyl-CoA": {
+      "smiles_source": "pubchem",
+      "query": "stearoyl-CoA"
+    },
+    "NADPH": {
+      "smiles_source": "pubchem",
+      "query": "NADPH"
+    },
+    "NADP+": {
+      "smiles_source": "pubchem",
+      "query": "NADP+"
+    },
+    "CoA": {
+      "smiles_source": "pubchem",
+      "query": "coenzyme A"
+    },
+    "CO2": {
+      "smiles_source": "pubchem",
+      "query": "carbon dioxide"
+    },
+    "H2O": {
+      "smiles_source": "pubchem",
+      "query": "water"
+    }
+  }
+}
