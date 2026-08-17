@@ -179,7 +179,7 @@ class Settings(BaseModel):
     kinetics_ec_kcat_scale: Optional[Dict[str, Annotated[float, Field(gt=0)]]] = None
 
     # Opt-in fitted calibrations (bees.rules.calibrations) to enable for this run,
-    # by name (e.g. ["elongation_chain_cliff", "tesa_long_chain_preference"]).
+    # by name (e.g. ["tesa_long_chain_preference", "fabI_enoyl_reductase_measured_kcat"]).
     # NAMES ONLY — parameters are locked in the calibration definitions, so a run
     # cannot silently re-tune a fit from YAML. Physics laws are always on and are
     # NOT listed here. Names are validated against the rule registry at run time

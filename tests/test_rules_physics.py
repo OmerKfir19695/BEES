@@ -33,14 +33,8 @@ from bees.rules.physics_rules import (
     _R_KJ,
     compute_haldane_reverse_kcat,
 )
-from bees.rules.calibrations import (
-    ElongationChainCliff,
+from bees.rules.calibrations.fas import (
     TesALongChainPreference,
-    _CLIFF_F_MIN,
-    _CLIFF_N_HALF,
-    _CLIFF_SHARPNESS,
-    _ELONGATION_SYNTHASE_ECS,
-    _TESA_PREF_G_MIN,
     _TESA_PREF_N_HALF,
     _TESA_PREF_SHARPNESS,
     _TESA_THIOESTERASE_ECS,
@@ -373,84 +367,6 @@ class TestHydrophobicChainLengthKm:
         )
 
 
-# ---------------------------------------------------------------------------
-# ElongationChainCliff
-# ---------------------------------------------------------------------------
-
-class TestElongationChainCliff:
-    @staticmethod
-    def _rule():
-        return _rule(ElongationChainCliff, params={
-            "ec_numbers": _ELONGATION_SYNTHASE_ECS,
-            "f_min": _CLIFF_F_MIN,
-            "n_cliff": _CLIFF_N_HALF,
-            "sharpness_k": _CLIFF_SHARPNESS,
-        })
-
-    @staticmethod
-    def _expected_factor(n):
-        return _CLIFF_F_MIN + (1.0 - _CLIFF_F_MIN) / (
-            1.0 + math.exp(_CLIFF_SHARPNESS * (n - _CLIFF_N_HALF))
-        )
-
-    def _synthase_rxn(self, n_acyl, kcat0=5.0, ec="EC 2.3.1.179", enzyme="FabF"):
-        # Condensation: acyl-[ACP](n) + malonyl-[ACP] -> 3-oxo(n+2)-[ACP] + CO2.
-        acyl = {12: "dodecanoyl-[ACP]", 14: "tetradecanoyl-[ACP]",
-                16: "hexadecanoyl-[ACP]"}[n_acyl]
-        return FakeReaction(
-            enzyme_label=enzyme, ec_number=ec,
-            stoichiometry={acyl: -1, "malonyl-[ACP]": -1, "co2": 1},
-            kinetics=FakeKinetics(kcat=kcat0,
-                                  km_per_substrate={acyl: 0.04, "malonyl-[ACP]": 0.0082}),
-            thermo=FakeThermo(),
-        )
-
-    # -- applies_to --------------------------------------------------------
-    def test_applies_to_synthase(self):
-        assert self._rule().applies_to(self._synthase_rxn(16)) is True
-        assert self._rule().applies_to(
-            self._synthase_rxn(12, ec="EC 2.3.1.41", enzyme="FabB")) is True
-
-    def test_does_not_apply_to_wrong_ec(self):
-        # TesA hydrolysis EC must not trigger the synthase cliff.
-        rxn = self._synthase_rxn(16, ec="EC 3.1.2.14", enzyme="TesA")
-        assert self._rule().applies_to(rxn) is False
-
-    def test_does_not_apply_without_ec(self):
-        rxn = self._synthase_rxn(16, ec=None)
-        assert self._rule().applies_to(rxn) is False
-
-    # -- apply -------------------------------------------------------------
-    def test_long_chain_floored(self):
-        rxn = self._synthase_rxn(16, kcat0=5.0)
-        self._rule().apply(rxn)
-        assert rxn.kinetics.kcat == pytest.approx(5.0 * self._expected_factor(16))
-        assert rxn.kinetics.kcat < 5.0 * 0.05  # C16 strongly cut (~0.02x)
-
-    def test_mid_chain_barely_touched(self):
-        rxn = self._synthase_rxn(12, kcat0=5.0)
-        self._rule().apply(rxn)
-        assert rxn.kinetics.kcat == pytest.approx(5.0 * self._expected_factor(12))
-        assert rxn.kinetics.kcat > 5.0 * 0.9  # C12 ~unchanged
-
-    def test_monotonic_decreasing_with_chain(self):
-        f = self._expected_factor
-        assert f(12) > f(14) > f(16)
-
-    def test_uses_longest_acyl_substrate_not_malonyl(self):
-        # Factor must key on the C16 acyl chain, not the C3 malonyl extender.
-        rxn = self._synthase_rxn(16, kcat0=5.0)
-        self._rule().apply(rxn)
-        assert rxn.kinetics.kcat == pytest.approx(5.0 * self._expected_factor(16))
-
-    def test_idempotent_across_repeated_apply_all(self):
-        rxn = self._synthase_rxn(16, kcat0=5.0)
-        reg = RuleRegistry()
-        reg.register(self._rule())
-        for _ in range(5):
-            reg.apply_all([rxn])
-        assert rxn.kinetics.kcat == pytest.approx(5.0 * self._expected_factor(16))
-
 
 # ---------------------------------------------------------------------------
 # TesALongChainPreference
@@ -461,14 +377,13 @@ class TestTesALongChainPreference:
     def _rule():
         return _rule(TesALongChainPreference, params={
             "ec_numbers": _TESA_THIOESTERASE_ECS,
-            "g_min": _TESA_PREF_G_MIN,
             "n_half": _TESA_PREF_N_HALF,
             "sharpness_k": _TESA_PREF_SHARPNESS,
         })
 
     @staticmethod
     def _expected_factor(n):
-        return _TESA_PREF_G_MIN + (1.0 - _TESA_PREF_G_MIN) / (
+        return 1.0 / (
             1.0 + math.exp(-_TESA_PREF_SHARPNESS * (n - _TESA_PREF_N_HALF))
         )
 
@@ -494,7 +409,7 @@ class TestTesALongChainPreference:
         assert self._rule().applies_to(rxn) is False
 
     # -- apply -------------------------------------------------------------
-    def test_short_chain_suppressed_to_floor(self):
+    def test_short_chain_strongly_suppressed(self):
         rxn = self._tesa_rxn(4, kcat0=10.0)
         self._rule().apply(rxn)
         assert rxn.kinetics.kcat == pytest.approx(10.0 * self._expected_factor(4))
@@ -668,23 +583,6 @@ class TestRegistryOrderingAndIdempotence:
         reg.apply_all([rxn])
         assert rxn.thermo.irreversible is True
         assert rxn.thermo.kcat_rev is None
-
-    def test_ceiling_runs_after_haldane(self):
-        # Huge Haldane kcat_rev (1e6 * 1 / (1e-6 * 1) = 1e12) → ceiling clamps.
-        rxn = FakeReaction(
-            stoichiometry={"S": -1, "P": 1},
-            kinetics=FakeKinetics(kcat=1e6, km_per_substrate={"S": 1.0, "P": 1.0}),
-            thermo=FakeThermo(dgr_prime_kJmol=-5.0, keq=1e-6),
-        )
-        rxn.kinetics._substrate_kms_for_haldane = {"S": 1.0}
-        rxn.kinetics._product_kms_for_haldane = {"P": 1.0}
-        reg = RuleRegistry()
-        reg.register(_rule(DgrIrreversibility, params={"dgr_kjmol_cutoff": 30.0}))
-        reg.register(_rule(HaldaneReverseKcat))
-        reg.register(_rule(ReverseKcatCeiling, params={"kcat_rev_max": KCAT_REV_MAX}))
-        reg.apply_all([rxn])
-        assert rxn.thermo.kcat_rev is None
-        assert rxn.thermo.irreversible is True
 
     def test_idempotent_across_multiple_calls(self):
         rxn = FakeReaction(

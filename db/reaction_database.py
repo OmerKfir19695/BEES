@@ -1,16 +1,8 @@
 #!/usr/bin/env python3
 
-"""
-Reaction Database Module
-------------------------
-This module provides access to enzyme-catalyzed reaction data from local CSV database 
-with methods for querying reactions by enzyme EC number, substrate, and cofactors.
+"""Local CSV reaction database (load + query by EC / substrate).
 
-This module handles:
-- Loading reaction data from CSV files (including stoichiometry, EC numbers, enzyme names)
-- Querying by enzyme EC number and substrate
-- Handling missing values gracefully
-- Logging database access for debugging
+Rationale: knowledge/functions/REACTION_DATABASE.md
 """
 
 import os
@@ -22,21 +14,13 @@ from bees.logger import Logger
 from bees.common import get_ontology_equivalents, canonical_smiles, get_chemical_aliases
 from bees.cofactors import GENERAL_COFACTORS, ACYL_CHAIN_SMILES
 
-# Phosphopantetheine handle shared by all ACP-thioester proxy SMILES in the DB CSV.
-# Acyl chains are prepended to this suffix; the full molecule is:
-#   ACYL_CHAIN_SMILES[acyl] + _PPANT_HANDLE
-# This matches the truncated 4'-phosphopantetheine moiety used by the acp_ppant_proxy
-# builder in the DB. It does NOT include the full CoA adenine-ribose-ADP moiety.
+# ACP proxy SMILES = ACYL_CHAIN_SMILES[acyl] + _PPANT_HANDLE (see REACTION_DATABASE.md).
 _PPANT_HANDLE = "SCCNC(=O)CCNC(=O)[C@H](O)C(C)(C)COP(=O)(O)O"
 _ACP_SUFFIX_LC = "-[acp]"
 
 @dataclass
 class KineticData:
-    """
-    This class use as a container for reaction data with kinetic parameters retrieved from database.
-    All concentration units in mM, energy in kJ/mol, temperature in K.
-    SD fields hold standard deviation of estimated parameters (e.g. from CatPred).
-    """
+    """One reaction row from the CSV. Units: mM, kJ/mol, K. See REACTION_DATABASE.md."""
     
     ec_number: str
     enzyme_name: str
@@ -64,29 +48,9 @@ class KineticData:
 
 
 class ReactionDatabase:
-    """
-    Enzyme reaction database interface.
-    
-    Loads and queries reaction data from CSV files. Provides methods to search
-    for reactions by enzyme, substrate, and cofactor combinations.
-    
-    Attributes:
-        data (List[Dict]): Raw data loaded from CSV
-        reactions (List[KineticData]): Parsed reaction data objects
-        logger (Logger): BEES Logger instance 
-    """
+    """Load/query enzyme reactions from CSV. See REACTION_DATABASE.md."""
     
     def __init__(self, logger: Logger, ontology: Optional[Dict[str, List[str]]] = None):
-        """
-        Initialize empty database.
-        
-        Args:
-            logger (Logger): BEES Logger instance (required).
-            ontology (dict, optional): Chemical ontology for alias matching.
-            
-        Raises:
-            TypeError: If logger is not a BEES Logger instance.
-        """
         if not isinstance(logger, Logger):
             raise TypeError(
                 f"logger must be a BEES Logger instance, got {type(logger).__name__}. "
@@ -101,15 +65,7 @@ class ReactionDatabase:
         self.ontology = ontology or {}
     
     def load_from_csv(self, csv_path: str) -> int:
-        """
-        Load reaction data from CSV file.
-        
-        Args:
-            csv_path (str): Path to CSV file containing reaction data
-            
-        Returns:
-            int: Number of reactions loaded
-        """
+        """Load reactions from CSV; return count. See REACTION_DATABASE.md."""
         if not os.path.exists(csv_path):
             raise FileNotFoundError(f"Reaction database file not found: {csv_path}")
         
@@ -223,19 +179,7 @@ class ReactionDatabase:
         self,
         compound_smiles: Optional[Dict[str, str]],
     ) -> Optional[Dict[str, str]]:
-        """Rebuild ACP-thioester SMILES from ACYL_CHAIN_SMILES for any compound
-        whose name ends with '-[ACP]' and whose acyl prefix is in ACYL_CHAIN_SMILES.
-
-        The DB CSV's acp_ppant_proxy builder silently drops double-bond geometry
-        for unsaturated acyl chains, making e.g. '3-oxo-(5Z)-dodecenoyl-[ACP]' and
-        '3-oxododecanoyl-[ACP]' share the same proxy SMILES. That causes
-        _register_species_label to alias the saturated product to the unsaturated
-        name, generating wrong products in condensation reactions.
-
-        This correction runs at DB load time and is cheap (dict lookup). Only
-        compounds whose acyl prefix is found in ACYL_CHAIN_SMILES are touched;
-        all others pass through unchanged.
-        """
+        """Rebuild ACP-thioester SMILES from ACYL_CHAIN_SMILES. See REACTION_DATABASE.md."""
         if not compound_smiles:
             return compound_smiles
         corrected: Dict[str, str] = {}
@@ -257,12 +201,7 @@ class ReactionDatabase:
         fallback_blob: Optional[str],
         row_index: int,
     ) -> Optional[Dict[str, int]]:
-        """
-        Parse stoichiometry from:
-        1) explicit `stoichiometry` column (JSON dict)
-        2) meta["stoichiometry"]
-        3) legacy blob that might itself be the stoichiometry dict
-        """
+        """Parse stoichiometry from column / meta / legacy blob. See REACTION_DATABASE.md."""
         candidates: List[Any] = []
         if stoich_raw:
             candidates.append(self._parse_json_blob(stoich_raw) or stoich_raw)
@@ -304,29 +243,7 @@ class ReactionDatabase:
         return_all: bool = False,
         substrate_smiles: Optional[str] = None,
     ) -> Union[Optional[KineticData], List[KineticData]]:
-        """
-        Query database for reactions by enzyme and substrate.
-        Matching: SMILES first (if substrate_smiles given), then name + ontology.
-        Results are deduplicated by (EC, canonical substrate SMILES).
-
-        Args:
-            ec_number (str): Enzyme EC number (e.g., "EC 2.7.1.1")
-            substrate_label (str): Substrate name/label
-            cofactor (str, optional): Cofactor name if required
-            strict (bool): If True, require exact cofactor match. If False, ignore cofactor.
-            temperature_range (tuple, optional): (min_temp, max_temp) in K. Only return if database
-                                                 temperature falls within this range.
-            ph_range (tuple, optional): (min_ph, max_ph). Only return if database pH falls within
-                                        this range.
-            available_species_labels_lc (set, optional): Set of species labels (lowercase) that are
-                                                         actually available in the system. Used to
-                                                         prioritize reactions.
-            return_all (bool): If True, return all matches sorted by priority. If False, return top.
-            substrate_smiles (str, optional): SMILES of the substrate for structure-based matching.
-
-        Returns:
-            KineticData, List[KineticData] or None: Matching reaction data or list of matches
-        """
+        """Query by EC + substrate (SMILES then name/ontology). See REACTION_DATABASE.md."""
         self.logger.debug(f"Querying database: EC={ec_number}, Substrate={substrate_label}, "
                          f"Cofactor={cofactor}, TempRange={temperature_range}, pHRange={ph_range}")
 
@@ -516,32 +433,14 @@ class ReactionDatabase:
         return [] if return_all else None
     
     def query_by_enzyme(self, ec_number: str) -> List[KineticData]:
-        """
-        Query all reactions for a given enzyme EC number.
-        
-        Args:
-            ec_number (str): Enzyme EC number
-            
-        Returns:
-            List[KineticData]: All matching reactions
-        """
+        """All reactions for an EC number."""
         ec_number = ec_number.strip()
         matches = [rxn for rxn in self.reactions if rxn.ec_number == ec_number]
         self.logger.debug(f"Found {len(matches)} reactions for enzyme {ec_number}")
         return matches
     
     def query_by_substrate(self, substrate_label: str) -> List[KineticData]:
-        """
-        Query all reactions involving a substrate.
-        Uses chemical ontology to match generic reactions.
-        Skips triggers by general cofactors unless they are the primary substrate.
-        
-        Args:
-            substrate_label (str): Substrate name/label
-            
-        Returns:
-            List[KineticData]: All matching reactions
-        """
+        """All reactions with substrate as reactant (ontology aliases). See REACTION_DATABASE.md."""
         substrate_label = substrate_label.strip()
         
         # Get all aliases for this substrate (including chemical class categories)
@@ -562,24 +461,13 @@ class ReactionDatabase:
         return matches
     
     def get_all_reactions(self) -> List[KineticData]:
-        """
-        Get all reactions in the database.
-        
-        Returns:
-            List[KineticData]: All loaded reactions
-        """
+        """All loaded reactions."""
         return self.reactions
     
     def summary(self) -> Dict[str, Any]:
-        """
-        Get database summary statistics.
-        
-        Returns:
-            dict: Summary statistics
-        """
+        """Counts: reactions, unique enzymes, unique non-cofactor substrates."""
         total = len(self.reactions)
         unique_enzymes = len(set(r.ec_number for r in self.reactions))
-        # Count "unique substrates" as unique non-cofactor reactants across all stoichiometries
         unique_substrates_set = set()
         for r in self.reactions:
             if not r.stoichiometry:

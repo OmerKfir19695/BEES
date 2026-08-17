@@ -114,7 +114,7 @@ class ReactionGenerator:
                         "calibration rules) for production fitted corrections."
                     )
                     warnings.warn(msg, DeprecationWarning, stacklevel=2)
-                    self.logger.warning("DEPRECATION: %s", msg)
+                    self.logger.warning(f"DEPRECATION: {msg}")
                 measured_file = getattr(self.bees_object.settings, "measured_kinetics_file", None)
                 if measured_file and not os.path.isabs(measured_file):
                     # Resolve relative to the project dir, then cwd, then repo root.
