@@ -241,6 +241,9 @@ class CatPredEstimator(BaseKineticsEstimator):
             return EstimatedKinetics(source="catpred(no reactants)")
 
         memo_key = None
+        _omit_cof = os.environ.get(
+            "BEES_CATPRED_KCAT_OMIT_COFACTORS", ""
+        ).strip().lower() in {"1", "true", "yes", "on"}
         try:
             memo_key = (
                 enzyme_sequence,
@@ -254,6 +257,7 @@ class CatPredEstimator(BaseKineticsEstimator):
                 canonical_smiles(inhibitor_smiles) if inhibitor_smiles else None,
                 bool(self.include_sd),
                 self.CHECKPOINT_BASE,  # model identity: a checkpoint change invalidates
+                bool(_omit_cof),  # kcat SMILES filter mode
             )
             cached = self._memo.get(memo_key)
             if cached is not None:
@@ -330,8 +334,24 @@ class CatPredEstimator(BaseKineticsEstimator):
         # so identical sequences share the embedding and different ones never collide.
         pdb_id = "bees_" + hashlib.md5(enzyme_sequence.encode("utf-8")).hexdigest()[:16]
 
-        # --- kcat: one row with concatenated SMILES of all reactants ---
-        concatenated_smiles = ".".join(s for s in reactant_smiles.values() if s)
+        # --- kcat: one row with concatenated SMILES of reactants ---
+        # Default: all reactants. Opt-in BEES_CATPRED_KCAT_OMIT_COFACTORS=1 drops
+        # GENERAL_COFACTORS from the kcat SMILES only (Km queries unchanged).
+        # Diagnose / ablation switch — not a production default.
+        if _omit_cof:
+            from bees.cofactors import GENERAL_COFACTORS as _GEN_COF
+
+            _kcat_smiles = [
+                s
+                for name, s in reactant_smiles.items()
+                if s and str(name).lower().strip() not in _GEN_COF
+            ]
+            # Fall back to all reactants if filtering emptied the list.
+            if not _kcat_smiles:
+                _kcat_smiles = [s for s in reactant_smiles.values() if s]
+        else:
+            _kcat_smiles = [s for s in reactant_smiles.values() if s]
+        concatenated_smiles = ".".join(_kcat_smiles)
         if concatenated_smiles:
             kcat_csv = os.path.join(catpred_work_dir, f"{run_id}_kcat.csv")
             df_kcat = pd.DataFrame([{
