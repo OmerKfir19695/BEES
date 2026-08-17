@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from typing import List, Set, Optional
-from bees.common import get_ontology_equivalents
+from bees.common import get_ontology_equivalents, load_ontology_categories
 from bees.cofactors import COFACTORS_ALWAYS_AVAILABLE
 from bees.cofactors import get_coenzyme_like_flags
 
@@ -104,8 +104,12 @@ def check_reactant_availability(
     1) Always-available cofactors (e.g., H2O, H+, Pi; see COFACTORS_ALWAYS_AVAILABLE)
     2) Direct match in `available_species_labels_lc`
     3) Enzyme domain cofactors (if `enzyme_label` given; skipped for acyl-ACP reactants)
-    4) Ontology equivalents
-    
+    4) Ontology equivalents — with concrete vs category asymmetry:
+       - Category reactant (e.g. "an acyl-CoA"): available if any member / alias is present.
+       - Concrete reactant (e.g. "propanoyl-CoA"): only synonyms / ACP permutations count;
+         shared parent categories (e.g. having Acetyl-CoA expand to "an acyl-CoA") must
+         NOT make sibling molecules available.
+
     Args:
         reactant (str): Reactant name to check
         available_species_labels_lc (Set[str]): Set of available species (lowercase)
@@ -141,9 +145,20 @@ def check_reactant_availability(
         if any(pattern in r_lc for pattern in domain_cofactors_lc):
             return True, "domain_cofactor"
 
-    # Check ontology equivalents
+    # Ontology equivalents. Category parents in the *available* set must not make
+    # sibling concrete molecules look present (Acetyl-CoA ≠ propanoyl-CoA).
+    # Category keys from load_ontology_categories are lowercase; aliases from
+    # get_ontology_equivalents may preserve YAML casing — compare lowercased.
     equivalents = get_ontology_equivalents(r_lc)
-    if any(eq in available_species_labels_lc for eq in equivalents):
+    categories = load_ontology_categories()
+    if r_lc in categories:
+        match_labels = equivalents
+    else:
+        match_labels = [
+            eq for eq in equivalents
+            if str(eq).lower().strip() not in categories
+        ]
+    if any(eq in available_species_labels_lc for eq in match_labels):
         return True, "ontology"
 
     return False, None
