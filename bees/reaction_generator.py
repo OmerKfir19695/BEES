@@ -1,14 +1,6 @@
 #!/usr/bin/env python3
 
-"""
-Builds biochemical reactions from species and enzymes.
-
-Two modes: batch discovery (`generate_reactions`) iteratively expands products into
-substrates; iterative enlargement (`IterativeEnlarger`) generates reactions only for
-newly promoted core species. Each reaction is built by querying the DB by EC number,
-merging template topology with DB stoichiometry, optionally estimating kinetics, and
-validating reactant availability.
-"""
+"""Builds reactions from species + enzymes (batch discovery or iterative enlargement)."""
 
 from __future__ import annotations
 
@@ -48,14 +40,11 @@ class GeneratedReaction:
     stoichiometry: Dict[str, int]
     rate_law: Optional[str] = None  # Only set if kinetics available from database
     thermo: Optional[ThermoData] = None
-    # Opt-in end-product/feedback inhibition (Enzyme.feedback_inhibition).
-    # Maps inhibitor species label (lowercased) -> (Ki mM, Hill exponent). The
-    # simulator multiplies this reaction's rate by ∏ 1/(1+([I]/Ki)^h). None = off.
+    # Opt-in; enlarger attaches the map (match by enzyme label).
     feedback_inhibitors: Optional[Dict[str, tuple]] = None
 
     def __repr__(self):
         return f"Reaction: {' + '.join(self.reactant_labels)} → {' + '.join(self.product_labels)}"
-
 
 class ReactionGenerator:
     """Builds biochemical reactions from BEES input species and enzymes."""
@@ -67,9 +56,6 @@ class ReactionGenerator:
         self.kinetic_db = None
         self.reactions: List[GeneratedReaction] = []
         self.kinetics_estimator = None
-        # Species canonicalization registry:
-        # - alias_lc -> canonical display label
-        # - canonical_smiles -> canonical display label
         self._species_alias_to_canonical_label: Dict[str, str] = {}
         self._species_smiles_to_canonical_label: Dict[str, str] = {}
 
@@ -101,11 +87,7 @@ class ReactionGenerator:
                 include_sd = getattr(self.bees_object.settings, "kinetics_include_sd", False)
                 ec_kcat_scale = getattr(self.bees_object.settings, "kinetics_ec_kcat_scale", None)
                 if ec_kcat_scale:
-                    # DEPRECATED: kinetics_ec_kcat_scale is a YAML fitting surface
-                    # (arbitrary per-EC kcat multipliers from the input). The
-                    # production path for fitted corrections is now the declared,
-                    # parameter-locked `settings.calibrations` (bees.rules.calibrations).
-                    # Kept working for experiments; will be removed once callers migrate.
+                    # DEPRECATED: YAML per-EC kcat multipliers; use settings.calibrations.
                     import warnings
                     msg = (
                         "settings.kinetics_ec_kcat_scale is deprecated and experiment-only: "
@@ -115,21 +97,10 @@ class ReactionGenerator:
                     )
                     warnings.warn(msg, DeprecationWarning, stacklevel=2)
                     self.logger.warning(f"DEPRECATION: {msg}")
-                measured_file = getattr(self.bees_object.settings, "measured_kinetics_file", None)
-                if measured_file and not os.path.isabs(measured_file):
-                    # Resolve relative to the project dir, then cwd, then repo root.
-                    import bees.common as _common
-                    bases = [getattr(self.bees_object, "base_directory", None),
-                             os.getcwd(), getattr(_common, "BEES_PATH", None)]
-                    for base in bases:
-                        if base and os.path.isfile(os.path.join(base, measured_file)):
-                            measured_file = os.path.join(base, measured_file)
-                            break
                 self.kinetics_estimator = build_estimator(
                     getattr(self.bees_object.settings, "kinetics_estimator", None),
                     include_sd=include_sd,
                     ec_kcat_scale=ec_kcat_scale,
-                    measured_kinetics_file=measured_file,
                 )
                 if self.kinetics_estimator:
                     self.logger.info(f"Kinetics estimation enabled: {self.kinetics_estimator.name}")
@@ -148,12 +119,7 @@ class ReactionGenerator:
         self.logger.info("=" * 60)
         
         def reaction_signature(reaction: GeneratedReaction) -> tuple:
-            """
-            Canonical signature for deduplication in batch discovery.
-            Includes enzyme label so isozymes that catalyse the same equation
-            (e.g. FabA vs FabZ, FabB vs FabF) are kept as separate reactions,
-            consistent with the signature used by the iterative enlarger.
-            """
+            # Signature includes enzyme so isozymes (FabA/FabZ, FabB/FabF) stay distinct.
             enzyme = str(reaction.enzyme_label).lower().strip()
             reactants_tuple = tuple(sorted(str(r).lower().strip() for r in reaction.reactant_labels))
             products_tuple = tuple(sorted(str(p).lower().strip() for p in reaction.product_labels))
@@ -303,15 +269,13 @@ class ReactionGenerator:
         kinetic_data,
         substrate_label: str,
     ) -> Optional[str]:
-        """Resolve SMILES for a compound from species, compound_smiles, or ontology."""
-        # 1. Species label match
+        """Resolve SMILES from species, compound_smiles, or ontology."""
         compound_lc = compound_label.lower().strip()
         for species in getattr(self.bees_object, "species", []):
             if hasattr(species, "label") and species.label.lower().strip() == compound_lc:
                 if hasattr(species, "smiles") and species.smiles:
                     return species.smiles
                 break
-        # 2. compound_smiles from kinetic_data (with ontology/stoichiometry)
         compound_smiles = getattr(kinetic_data, "compound_smiles", None)
         if isinstance(compound_smiles, dict):
             s = compound_smiles.get(compound_label)
@@ -331,24 +295,16 @@ class ReactionGenerator:
         label: str,
         smiles: Optional[str] = None,
     ) -> str:
-        """
-        Register a species label in the canonicalization registry.
-
-        Returns the canonical display label for this species. If a canonical
-        label already exists for the same SMILES or ontology-equivalent alias,
-        that existing label is reused.
-        """
+        """Return the canonical display label, unifying by SMILES then ontology."""
         label_clean = str(label).strip()
         label_lc = label_clean.lower()
         if not label_clean:
             return label_clean
 
-        # Already known alias -> return the existing canonical label.
         existing = self._species_alias_to_canonical_label.get(label_lc)
         if existing is not None:
             return existing
 
-        # Prefer SMILES-based unification when available.
         can_smi = canonical_smiles(smiles) if smiles else None
         if can_smi:
             existing_from_smiles = self._species_smiles_to_canonical_label.get(can_smi)
@@ -358,11 +314,7 @@ class ReactionGenerator:
                     self._species_alias_to_canonical_label[str(eq).lower().strip()] = existing_from_smiles
                 return existing_from_smiles
 
-        # Fallback: ontology-based unification to an already-seen canonical label.
-        # Skip when the existing canonical has SMILES: ontology categories can group
-        # structurally different compounds and merging them produces invalid stoichiometry. 
-        # Only merge when we can verify structural identity (both have SMILES and match)
-        # or when the target has no SMILES.
+        # Skip ontology unify when existing canonical has SMILES (categories mix structures).
         for eq in get_ontology_equivalents(label_clean):
             eq_lc = str(eq).lower().strip()
             existing_from_alias = self._species_alias_to_canonical_label.get(eq_lc)
@@ -378,7 +330,6 @@ class ReactionGenerator:
                 self._species_alias_to_canonical_label[label_lc] = existing_from_alias
                 return existing_from_alias
 
-        # New canonical label.
         canonical_label = label_clean
         self._species_alias_to_canonical_label[label_lc] = canonical_label
         for eq in get_ontology_equivalents(label_clean):
@@ -393,12 +344,7 @@ class ReactionGenerator:
         kinetic_data: Optional[KineticData],
         substrate_label: str,
     ) -> str:
-        """
-        Canonicalize a species label using (in order):
-        1) existing alias registry
-        2) SMILES-based identity
-        3) ontology-equivalent alias reuse
-        """
+        """Canonicalize via alias registry, SMILES identity, then ontology."""
         smiles = self._resolve_smiles_for_compound(
             compound_label=label,
             kinetic_data=kinetic_data,
@@ -412,12 +358,7 @@ class ReactionGenerator:
         kinetic_data,
         substrate_label: str,
     ) -> Optional[bool]:
-        """
-        Check whether a reaction conserves heavy atoms.
-
-        Returns True if balanced, False if unbalanced, or None when the check
-        cannot be performed (at least one species lacks a resolvable SMILES).
-        """
+        """True if conserved, False if unbalanced (skip), None if check not possible."""
         
         for species in stoichiometry.keys():
             if isinstance(species, str) and ("[ACP]" in species or "[acp]" in species):
@@ -461,7 +402,6 @@ class ReactionGenerator:
         substrate_label = substrate.label
         ec_number = enzyme.ecnumber
 
-        # Normalise to a list so multi-EC enzymes are handled uniformly.
         if isinstance(ec_number, list):
             ec_numbers_declared = ec_number
         elif ec_number is not None:
@@ -586,10 +526,7 @@ class ReactionGenerator:
                 except Exception as e:
                     self.logger.warning(f"  Kinetics estimation failed: {e}")
 
-            # When kinetics estimation is enabled, require real kinetics — skip
-            # reactions that have no kcat/Km (CatPred should have provided them).
-            # When estimation is disabled the user wants topology-only discovery
-            # (fast batch mode), so allow reactions through without kinetics.
+            # Estimation on: require kcat/Km. Off: topology-only is OK.
             has_kcat = kinetic_data.kcat is not None
             has_km = kinetic_data.km is not None or bool(getattr(kinetic_data, "km_per_substrate", None))
             estimation_enabled = getattr(
@@ -597,10 +534,6 @@ class ReactionGenerator:
             )
             if not has_kcat and not has_km:
                 if estimation_enabled:
-                    # Most "no kinetics" cases come from generic-template DB rows
-                    # (substrate like "a fatty acyl-[ACP]") with no SMILES, so
-                    # CatPred can't run. Not actionable, expected when probing
-                    # template rows — keep in the log file but off the console.
                     self.logger.debug(
                         f"No kinetics available for {substrate_label} / {enzyme_label} "
                         f"(EC {getattr(kinetic_data, 'ec_number', '?')}) — reaction skipped."
@@ -613,7 +546,6 @@ class ReactionGenerator:
                     )
 
             try:
-                # Use the specific EC number from the DB match (handles multi-EC enzymes).
                 matched_ec = getattr(kinetic_data, "ec_number", None) or ec_numbers_declared[0]
                 template = create_reaction_from_database(
                     substrate=substrate_label,
@@ -623,11 +555,7 @@ class ReactionGenerator:
                     database_products=None,
                 )
                 
-                # Override topology from database stoichiometry
                 if kinetic_data.stoichiometry:
-                    # Canonicalize species labels so naming variants that
-                    # represent the same molecule (via SMILES/ontology) share
-                    # one model label.
                     canonical_stoich: Dict[str, int] = {}
                     for raw_name, coeff in kinetic_data.stoichiometry.items():
                         canonical_name = self._canonicalize_species_label(
@@ -638,7 +566,6 @@ class ReactionGenerator:
                         canonical_stoich[canonical_name] = (
                             canonical_stoich.get(canonical_name, 0) + coeff
                         )
-                    # Remove any terms canceled by alias merging.
                     canonical_stoich = {
                         name: coeff for name, coeff in canonical_stoich.items() if coeff != 0
                     }
@@ -650,14 +577,7 @@ class ReactionGenerator:
                         s for s in template.reactants if s.lower().strip() in GENERAL_COFACTORS
                     ]
 
-                    # Remap km_per_substrate keys to canonical labels.
-                    # CatPred stores Kms under the raw DB stoichiometry label
-                    # (e.g. "(5Z)-3-oxododecenoyl-[ACP]"), but after
-                    # _canonicalize_species_label the reaction's reactant label
-                    # may differ (e.g. "3-oxo-(5Z)-dodecenoyl-[ACP]"). If the
-                    # keys don't match, flux_calculator silently treats the
-                    # substrate as saturated (cofactor-skip), causing unbounded
-                    # accumulation for unsaturated ACP intermediates.
+                    # Remap km_per_substrate keys to canonical labels (else unbounded accumulation).
                     if getattr(kinetic_data, "km_per_substrate", None) and kinetic_data.stoichiometry:
                         raw_to_canonical: Dict[str, str] = {}
                         for raw_name in kinetic_data.stoichiometry:
@@ -679,8 +599,6 @@ class ReactionGenerator:
                                     for k, v in kinetic_data.km_sd_per_substrate.items()
                                 }
 
-                    # Reject reactions with unbalanced heavy atoms (catches
-                    # ontology over-merging artifacts and broken SMILES entries).
                     balanced = self._check_heavy_atom_balance(
                         stoichiometry=canonical_stoich,
                         kinetic_data=kinetic_data,
@@ -722,7 +640,6 @@ class ReactionGenerator:
                     rate_law=rate_law
                 )
 
-                # --- Thermo-first: attach ThermoData before ingestion ---
                 if thermo_engine is not None:
                     self._attach_raw_thermo_eagerly(
                         reaction=reaction,
@@ -754,13 +671,7 @@ class ReactionGenerator:
         provided_species_labels_lc,
         substitutor=None,
     ) -> None:
-        """Attach raw ThermoData (ΔG°' / Keq) to a reaction immediately after
-        it is built. Does NOT apply the |ΔG°'| cutoff, the Haldane reverse-kcat
-        recomputation, or the kcat_rev ceiling — those are the job of the
-        rule layer (bees.rules.physics_rules), invoked by the enlarger via
-        RULES.apply_all. Template.reversible is also no longer mutated here;
-        it is synced from thermo.irreversible in enlarger._attach_thermo_to_reactions
-        after rules run."""
+        """Attach raw ΔG°′ / Keq only; no cutoff, Haldane, or kcat_rev ceiling."""
         kin = reaction.kinetics
         stoich = reaction.stoichiometry
 
@@ -770,10 +681,7 @@ class ReactionGenerator:
             if smi:
                 smiles_map[lab] = smi
 
-        # Snapshot substrate Kms NOW, before the product Km query merges new entries
-        # into km_per_substrate. This is exactly when the old eager path captured
-        # km_substrates — the HaldaneReverseKcat rule reads from this snapshot so it
-        # sees the same Km set the old code passed to haldane_kcat_rev.
+        # Snapshot substrate Kms BEFORE product Km merge (Haldane needs the original set).
         from bees.cofactors import COFACTORS_ALWAYS_AVAILABLE as _COFACTORS
         _km_sub = getattr(kin, "km_per_substrate", None) or {}
         kin._substrate_kms_for_haldane = {
@@ -786,8 +694,7 @@ class ReactionGenerator:
         td = thermo_engine.compute_keq(stoichiometry=stoich, smiles_map=smiles_map)
         reaction.thermo = td
 
-        # Always query reverse direction even for irreversible reactions: product Kms are
-        # needed for forward-only product inhibition in compute_mm_rate.
+        # Always reverse-query even if irreversible (product inhibition).
         enzyme_seq: Optional[str] = None
         for enz in getattr(self.bees_object, "enzymes", []):
             if getattr(enz, "label", None) == reaction.enzyme_label:
@@ -810,10 +717,7 @@ class ReactionGenerator:
             kin.compound_smiles = {**product_smiles, **existing}
             smiles_map.update({k: v for k, v in product_smiles.items() if k not in smiles_map})
 
-        # Absorb product Kms into km_per_substrate (needed for forward-only product
-        # inhibition in compute_mm_rate). Also store the reverse-queried product Kms
-        # separately — Haldane must use ONLY these, not original product Kms from
-        # forward catalytic data (mirrors old eager-path km_products_haldane filter).
+        # Haldane uses ONLY reverse-queried product Kms, not forward catalytic product Kms.
         kin._product_kms_for_haldane = product_kms or {}
         if product_kms:
             existing_km = getattr(kin, "km_per_substrate", None) or {}
@@ -822,13 +726,6 @@ class ReactionGenerator:
                     existing_km[lab] = km
             kin.km_per_substrate = existing_km
 
-        # Re-compute with the enriched smiles_map so any product SMILES added
-        # by the reverse-Km lookup feeds into ΔG°' / Keq. The rule layer
-        # (bees.rules.physics_rules) is what now applies the |ΔG°'| cutoff,
-        # the Haldane reverse-kcat recomputation, and the kcat_rev ceiling.
-        # This method just attaches raw thermo. Template.reversible is synced
-        # from thermo.irreversible by enlarger._attach_thermo_to_reactions
-        # after RULES.apply_all runs.
         td_full = thermo_engine.compute_keq(stoichiometry=stoich, smiles_map=smiles_map)
         reaction.thermo = td_full
 
@@ -844,28 +741,12 @@ class ReactionGenerator:
         smiles_map: Optional[Dict[str, str]] = None,
         substitutor=None,
     ) -> tuple:
-        """
-        Collect product Kms for Haldane and product inhibition.
-
-        Strategy:
-        1. CatPred path (primary): call the kinetics estimator with the forward
-           products acting as reverse-direction substrates.  This mirrors how
-           the forward Kms are obtained and gives self-consistent values.
-        2. DB fallback (secondary): scan DB rows that have the product as a
-           substrate with the same EC number, collecting any pre-stored Kms.
-
-        Returns (product_kms, product_smiles) dicts.  Either may be empty.
-        """
+        """Collect product Kms via reverse CatPred, then DB fallback."""
         product_kms: Dict[str, float] = {}
         product_smiles: Dict[str, str] = {}
 
-        # ── 1. CatPred path ──────────────────────────────────────────────
         if enzyme_sequence and self.kinetics_estimator:
-            # Build {label: SMILES} for reverse-direction substrates (= forward
-            # products). Skip only buffered always-available cofactors (H2O,
-            # H+, CO2, metals) — regulatory cofactors (CoA, NAD, NADP, …) MUST
-            # be queried so reversible MM / Liebermeister can engage product
-            # terms instead of silently falling back to legacy forward-only.
+            # Skip only buffered cofactors; query CoA/NAD/NADP for product terms.
             _NON_SUBSTRATE_LABELS = {"h+", "h(+)", "proton", "h2o", "water"}
             rev_reactant_smiles: Dict[str, str] = {}
             for prod_label in reaction.product_labels:
@@ -887,11 +768,7 @@ class ReactionGenerator:
                         enzyme_sequence=enzyme_sequence,
                         reactant_smiles=rev_reactant_smiles,
                         inhibitor_smiles=None,
-                        # Pass the same EC as the forward direction so a measured
-                        # backend resolves reverse/Haldane Kms from measured data
-                        # instead of silently falling back to CatPred. Harmless for
-                        # CatPred (ec_number only affects kcat-scaling, which this
-                        # path discards — it reads km_per_substrate only).
+                        # Pass same EC as forward so measured reverse Kms resolve.
                         ec_number=getattr(reaction, "ec_number", None)
                         or (ec_numbers_to_try[0] if ec_numbers_to_try else None),
                     )
@@ -908,12 +785,7 @@ class ReactionGenerator:
                         f"CatPred reverse estimation failed for {reaction.enzyme_label}: {exc}"
                     )
 
-        # ── 2. DB fallback ────────────────────────────────────────────────
-        # The ecoli.csv database stores only forward-direction rows, so
-        # queries for products-as-substrates return needs_reversal=True hits
-        # which are filtered out by query_by_enzyme_substrate.  This loop
-        # therefore never yields results for the ecoli model, but is kept as
-        # a supplement for databases that do contain explicit reverse rows.
+        # DB fallback never yields for ecoli.csv (forward-only rows).
         if self.kinetic_db:
             for prod_label in reaction.product_labels:
                 if prod_label in product_kms:
@@ -1006,7 +878,6 @@ class ReactionGenerator:
             f.write(f"pH: {self.bees_object.environment.pH}\n")
             f.write("\n" + "=" * 80 + "\n\n")
 
-            # Coenzyme participation note
             f.write("COENZYME PARTICIPATION NOTE\n")
             f.write("-" * 80 + "\n")
             f.write(
@@ -1020,7 +891,6 @@ class ReactionGenerator:
             )
             f.write("\n" + "=" * 80 + "\n\n")
             
-            # Add network schema section
             f.write("REACTION NETWORK SCHEMA\n")
             f.write("-" * 80 + "\n")
             f.write("This section shows the connectivity of species in the reaction network.\n")
@@ -1144,7 +1014,4 @@ class ReactionGenerator:
 
         self.logger.info(f"Exported reactions summary to {output_path}")
         return output_path
-    
-    def get_reactions(self) -> List[GeneratedReaction]:
-        return self.reactions
 

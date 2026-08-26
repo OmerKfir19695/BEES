@@ -22,7 +22,6 @@ from typing import Dict, Optional
 import pandas as pd
 from bees.common import canonical_smiles, log10_sd_to_linear_sd
 
-
 @dataclass(frozen=True)
 class EstimatedKinetics:
     """
@@ -46,9 +45,8 @@ class EstimatedKinetics:
     ki_sd: Optional[float] = None
     source: str = "estimator"
 
-
 class BaseKineticsEstimator:
-    """Adaptor - base class for integrate with external kinetics estimators."""
+    """Adaptor base class for external kinetics estimators."""
 
     name: str = "base"
 
@@ -73,7 +71,6 @@ class BaseKineticsEstimator:
         raise NotImplementedError(
             "BaseKineticsEstimator is an interface. Use build_estimator('catpred') "
         )
-
 
 class CatPredEstimator(BaseKineticsEstimator):
     """
@@ -113,21 +110,12 @@ class CatPredEstimator(BaseKineticsEstimator):
             )
             logging.getLogger(__name__).info(msg)
             print(f"[CatPredEstimator] {msg}", flush=True)
-        # In-process memoization: repeated CatPred calls are very expensive.
+        # In-process memoization: repeated CatPred calls are expensive.
         # Keyed by (enzyme sequence, reactant set, inhibitor, include_sd).
         # ec_number is NOT in the key — the cached entry is the unscaled CatPred
-        # prediction; scaling is applied after retrieval based on the caller's EC.
+    
         self._memo: Dict[tuple, EstimatedKinetics] = {}
-        # PERSISTENT prediction cache — ON BY DEFAULT for every project. CatPred is
-        # by far the slowest step; persisting the prediction memo lets re-runs of any
-        # network skip the subprocess. Keyed by (sequence, reactants, inhibitor,
-        # include_sd, model checkpoint), so reuse is always correct (predictions are
-        # deterministic in those inputs) and a model/checkpoint change invalidates
-        # stale entries. Shared across projects (identical sequence+substrate ⇒
-        # identical prediction), so any project benefits from another's cached calls.
-        #   BEES_CATPRED_CACHE unset        -> default ~/.cache/bees/catpred_predictions.pkl
-        #   BEES_CATPRED_CACHE=<path>       -> use that file
-        #   BEES_CATPRED_CACHE=off|0|none   -> disable
+        # BEES_CATPRED_CACHE: unset -> ~/.cache/bees/...; <path> -> that file; off/0/none/false/disable -> off.
         _cache_env = os.environ.get("BEES_CATPRED_CACHE")
         if _cache_env is None:
             _cache_dir = os.environ.get("XDG_CACHE_HOME") or os.path.join(
@@ -155,7 +143,7 @@ class CatPredEstimator(BaseKineticsEstimator):
                 )
 
     def _save_persistent_cache(self) -> None:
-        """Atomically write the memo to BEES_CATPRED_CACHE (best-effort, opt-in)."""
+        """Atomically write the memo to disk (best-effort)."""
         if not self._cache_path:
             return
         try:
@@ -170,18 +158,13 @@ class CatPredEstimator(BaseKineticsEstimator):
         except Exception as exc:
             logging.getLogger(__name__).debug("CatPred cache save failed: %s", exc)
 
-    # Paths to CatPred installation and models.
-    # Set env vars (CATPRED_DIR, CATPRED_CHECKPOINT_BASE, CATPRED_CONDA_ENV) or
-    # edit these defaults to match your installation.
     CATPRED_DIR = os.environ.get("CATPRED_DIR", "/path/to/CatPred")
     CHECKPOINT_BASE = os.environ.get(
         "CATPRED_CHECKPOINT_BASE",
         "/path/to/pretrained/production"
     )
     CONDA_ENV = os.environ.get("CATPRED_CONDA_ENV", "catpred")
-    # Optional: full path to conda binary (needed when multiple conda installs exist)
     CONDA_BIN = os.environ.get("CATPRED_CONDA_BIN", "conda")
-    # Optional: direct path to python binary in catpred env; if set, bypasses conda run entirely
     CATPRED_PYTHON = os.environ.get("CATPRED_PYTHON", "")
 
     def _apply_kcat_scaling(
@@ -189,9 +172,7 @@ class CatPredEstimator(BaseKineticsEstimator):
         raw: EstimatedKinetics,
         ec_number: Optional[str],
     ) -> EstimatedKinetics:
-        """Return raw if no scaling applies for this EC; otherwise return a copy
-        with kcat multiplied by the EC-specific factor and `source` annotated.
-        kcat_sd is intentionally not scaled — see Settings.kinetics_ec_kcat_scale."""
+        """Multiply kcat by the EC-specific factor; kcat_sd is not scaled."""
         if raw.kcat is None or not ec_number:
             return raw
         factor = self.ec_kcat_scale.get(ec_number)
@@ -304,7 +285,6 @@ class CatPredEstimator(BaseKineticsEstimator):
                             os.makedirs(os.path.dirname(dst), exist_ok=True)
                             shutil.copy2(src, dst)
                     except Exception as copy_exc:
-                        # Best-effort: continue, but keep an observable breadcrumb.
                         logging.getLogger(__name__).warning(
                             "Failed to stage CatPred item %r "
                             "(symlink error: %s; copy error: %s)",
@@ -313,10 +293,7 @@ class CatPredEstimator(BaseKineticsEstimator):
         
         os.makedirs(os.path.join(catpred_work_dir, "output"), exist_ok=True)
         os.makedirs(os.path.join(catpred_work_dir, "demo"), exist_ok=True)
-        # CatPred's demo_run.py writes a local ./predict.sh script. If we staged a
-        # symlinked predict.sh from the CatPred repo, it will be read-only and the
-        # run will fail with PermissionError. Ensure it's absent so demo_run.py can
-        # create it.
+        # CatPred demo_run.py writes ./predict.sh; a read-only symlink from the repo raises PermissionError.
         staged_predict_sh = os.path.join(catpred_work_dir, "predict.sh")
         try:
             if os.path.exists(staged_predict_sh):
@@ -326,18 +303,10 @@ class CatPredEstimator(BaseKineticsEstimator):
 
         results = {}
 
-        # CatPred caches the per-protein ESM embedding keyed by `pdbpath`
-        # (catpred/data/cache_utils.py: key = name -> ~/.cache.esm2_embeddings/.../{key}.pt).
-        # A constant pdbpath would collide across enzymes: every query would reuse
-        # whichever sequence first populated that cache slot, so the protein signal
-        # would be frozen and predictions wrong. Key the cache by the sequence itself
-        # so identical sequences share the embedding and different ones never collide.
+        # ESM embedding cache is keyed by pdbpath; key by sequence so enzymes don't collide.
         pdb_id = "bees_" + hashlib.md5(enzyme_sequence.encode("utf-8")).hexdigest()[:16]
 
-        # --- kcat: one row with concatenated SMILES of reactants ---
-        # Default: all reactants. Opt-in BEES_CATPRED_KCAT_OMIT_COFACTORS=1 drops
-        # GENERAL_COFACTORS from the kcat SMILES only (Km queries unchanged).
-        # Diagnose / ablation switch — not a production default.
+        # BEES_CATPRED_KCAT_OMIT_COFACTORS=1 drops GENERAL_COFACTORS from kcat SMILES only (Km unchanged).
         if _omit_cof:
             from bees.cofactors import GENERAL_COFACTORS as _GEN_COF
 
@@ -457,7 +426,7 @@ class CatPredEstimator(BaseKineticsEstimator):
                             results["km_per_substrate"] = km_per_substrate
                             if km_sd_per_substrate:
                                 results["km_sd_per_substrate"] = km_sd_per_substrate
-                            # Backward compat: single km = first substrate
+                            # Backward compat: single km = first substrate.
                             if km_per_substrate:
                                 first = next(iter(km_per_substrate.values()))
                                 results["km"] = first
@@ -505,226 +474,21 @@ class CatPredEstimator(BaseKineticsEstimator):
         )
         if memo_key is not None:
             try:
-                # Cache the unscaled prediction so different EC contexts (e.g.
-                # multi-EC enzymes like FabA) share the CatPred result.
                 self._memo[memo_key] = raw
-                self._save_persistent_cache()  # no-op unless BEES_CATPRED_CACHE set
+                self._save_persistent_cache()
             except Exception as exc:
                 logging.getLogger(__name__).debug("Failed to update CatPred memo cache for key %s: %s", memo_key, exc)
         return self._apply_kcat_scaling(raw, ec_number)
-
-
-class MeasuredTableEstimator(BaseKineticsEstimator):
-    """Use measured kinetics from a CSV, keyed by EC + acyl-chain length.
-
-    A reusable "use measured kinetics where available" backend. For any reaction
-    whose EC (and, for chain-resolved enzymes, acyl-chain length) is in the table,
-    it returns the measured kcat/Km; for anything not in the table it falls back to
-    an internal CatPred delegate. This lets a model run on measured data where it
-    exists (e.g. the Ruppe 2020 acyl-ACP FAS ladders) without losing coverage of
-    reactions that only CatPred can estimate.
-
-    CSV columns (parsed with comment='#', so '#'-prefixed lines are citations):
-        ec            EC number, prefix form without "EC " (e.g. "3.1.2.14")
-        chain         acyl-chain carbon count (even int 4..20) for chain-resolved
-                      enzymes, or "*" for a single value covering all chains
-        kcat_s        kcat in s^-1
-        km_acyl_mM    Km of the acyl (chain-bearing) substrate, in mM
-        km_malonyl_mM Km of malonyl substrate, in mM (blank if N/A)
-        km_cofactor_mM Km of the redox cofactor, in mM (blank if N/A)
-        cofactor      which cofactor km_cofactor_mM applies to: nadph | nadh | ""
-        source        free-text citation (ignored by the parser)
-
-    Units are mM (Km) and s^-1 (kcat) to match EstimatedKinetics; any µM→mM
-    conversion (e.g. TesA Km = koff/kon in µM) is done when writing the CSV.
-
-    SCALING: this estimator owns the final `ec_kcat_scale` application — for BOTH
-    measured rows and CatPred-fallback rows. Its internal CatPred delegate is built
-    UNSCALED so fallback rows are never scaled twice.
-    """
-
-    name = "measured_table"
-
-    def __init__(
-        self,
-        table_path: str,
-        include_sd: bool = False,
-        ec_kcat_scale: Optional[Dict[str, float]] = None,
-    ):
-        self.include_sd = include_sd
-        self.ec_kcat_scale: Dict[str, float] = dict(ec_kcat_scale or {})
-        # Unscaled CatPred delegate — this class applies scaling once, at the end.
-        self._fallback = CatPredEstimator(include_sd=include_sd, ec_kcat_scale=None)
-        self._table = self._load_table(table_path)
-        logging.getLogger(__name__).info(
-            "MeasuredTableEstimator loaded %d EC entries from %s",
-            len(self._table), table_path,
-        )
-
-    @staticmethod
-    def _ec_prefix(ec_number: Optional[str]) -> Optional[str]:
-        if not ec_number:
-            return None
-        s = str(ec_number).strip().upper()
-        if s.startswith("EC "):
-            s = s[3:].strip()
-        parts = s.split(".")
-        return ".".join(parts) if len(parts) == 4 else None
-
-    @staticmethod
-    def _nearest_chain(n: int) -> int:
-        n = max(4, min(20, int(n)))
-        return n if n % 2 == 0 else n - 1
-
-    def _load_table(self, table_path: str) -> Dict[str, Dict[object, dict]]:
-        df = pd.read_csv(table_path, comment="#", skip_blank_lines=True)
-        df.columns = [c.strip() for c in df.columns]
-        table: Dict[str, Dict[object, dict]] = {}
-        for _, r in df.iterrows():
-            ec = self._ec_prefix(str(r["ec"]))
-            if ec is None:
-                continue
-            ch = str(r["chain"]).strip()
-            key: object = "*" if ch == "*" else int(float(ch))
-            def _f(col):
-                v = r.get(col)
-                try:
-                    return float(v) if v is not None and str(v).strip() != "" and not pd.isna(v) else None
-                except (TypeError, ValueError):
-                    return None
-            table.setdefault(ec, {})[key] = {
-                "kcat_s": _f("kcat_s"),
-                "km_acyl_mM": _f("km_acyl_mM"),
-                "km_malonyl_mM": _f("km_malonyl_mM"),
-                "km_cofactor_mM": _f("km_cofactor_mM"),
-                "cofactor": (str(r.get("cofactor")).strip().lower()
-                             if r.get("cofactor") is not None and str(r.get("cofactor")).strip() != "" else None),
-            }
-        return table
-
-    @staticmethod
-    def _is_malonyl(label: str) -> bool:
-        return "malonyl" in label.lower()
-
-    @staticmethod
-    def _is_nadph(label: str) -> bool:
-        lo = label.lower()
-        return "nadph" in lo or "nadp" in lo
-
-    @staticmethod
-    def _is_nadh(label: str) -> bool:
-        lo = label.lower()
-        return ("nadh" in lo or lo in ("nad", "nad(+)", "nad+")) and "nadp" not in lo
-
-    def _apply_scale(self, raw: EstimatedKinetics, ec_number: Optional[str]) -> EstimatedKinetics:
-        """Apply ec_kcat_scale once (kcat only). Mirrors CatPredEstimator semantics."""
-        if raw.kcat is None or not ec_number:
-            return raw
-        factor = self.ec_kcat_scale.get(ec_number)
-        if factor is None:
-            return raw
-        return dataclasses.replace(
-            raw, kcat=raw.kcat * factor,
-            source=f"{raw.source} [kcat scaled x{factor} for {ec_number}]",
-        )
-
-    def estimate(
-        self,
-        *,
-        enzyme_sequence: str,
-        reactant_smiles: Dict[str, str],
-        inhibitor_smiles: Optional[str] = None,
-        ec_number: Optional[str] = None,
-    ) -> EstimatedKinetics:
-        from bees.rules.physics_rules import detect_acyl_chain_length
-
-        prefix = self._ec_prefix(ec_number)
-        ec_rows = self._table.get(prefix) if prefix else None
-
-        if not ec_rows:
-            # Not in the measured table -> unscaled CatPred, then apply our scaling.
-            raw = self._fallback.estimate(
-                enzyme_sequence=enzyme_sequence,
-                reactant_smiles=reactant_smiles,
-                inhibitor_smiles=inhibitor_smiles,
-                ec_number=ec_number,
-            )
-            return self._apply_scale(raw, ec_number)
-
-        # Chain of the acyl substrate being transformed = longest detectable acyl
-        # substrate (excludes malonyl C3 / acetyl C2 primers).
-        chain_by_label = {lab: detect_acyl_chain_length(lab, reactant_smiles.get(lab))
-                          for lab in reactant_smiles}
-        main_n = None
-        for lab, n in chain_by_label.items():
-            if n is not None and n >= 4 and not self._is_malonyl(lab):
-                main_n = n if main_n is None else max(main_n, n)
-
-        # Pick the row: chain-resolved if present, else the "*" single-value row.
-        row = None
-        if main_n is not None:
-            row = ec_rows.get(self._nearest_chain(main_n))
-        if row is None:
-            row = ec_rows.get("*")
-        if row is None:
-            # EC present but no matching chain and no "*" row -> fall back.
-            raw = self._fallback.estimate(
-                enzyme_sequence=enzyme_sequence, reactant_smiles=reactant_smiles,
-                inhibitor_smiles=inhibitor_smiles, ec_number=ec_number,
-            )
-            return self._apply_scale(raw, ec_number)
-
-        # Build km_per_substrate by classifying each reactant label.
-        km_per: Dict[str, float] = {}
-        for lab in reactant_smiles:
-            n = chain_by_label.get(lab)
-            if self._is_malonyl(lab) and row.get("km_malonyl_mM") is not None:
-                km_per[lab] = row["km_malonyl_mM"]
-            elif self._is_nadph(lab) and row.get("cofactor") == "nadph" and row.get("km_cofactor_mM") is not None:
-                km_per[lab] = row["km_cofactor_mM"]
-            elif self._is_nadh(lab) and row.get("cofactor") == "nadh" and row.get("km_cofactor_mM") is not None:
-                km_per[lab] = row["km_cofactor_mM"]
-            elif n is not None and n >= 2 and not self._is_malonyl(lab) and row.get("km_acyl_mM") is not None:
-                km_per[lab] = row["km_acyl_mM"]
-
-        raw = EstimatedKinetics(
-            kcat=row.get("kcat_s"),
-            km_per_substrate=km_per or None,
-            km=(next(iter(km_per.values())) if km_per else None),
-            source=f"measured_table(EC {prefix}, chain {self._nearest_chain(main_n) if main_n else '*'})",
-        )
-        return self._apply_scale(raw, ec_number)
 
 
 def build_estimator(
     name: Optional[str],
     include_sd: bool = False,
     ec_kcat_scale: Optional[Dict[str, float]] = None,
-    measured_kinetics_file: Optional[str] = None,
 ) -> Optional[BaseKineticsEstimator]:
-    """
-    Return the appropriate kinetics estimator based on the name.
-
-    Args:
-        name: Estimator backend name ('catpred' or 'measured_table')
-        include_sd: If True, estimator will include standard deviation
-        ec_kcat_scale: Optional per-EC kcat multiplier dict; see CatPredEstimator.
-        measured_kinetics_file: Path to the measured-kinetics CSV (required for
-            name == 'measured_table').
-    """
+    """Return a kinetics estimator (`catpred`), or None."""
     if not name:
         return None
     if name == "catpred":
         return CatPredEstimator(include_sd=include_sd, ec_kcat_scale=ec_kcat_scale)
-    if name == "measured_table":
-        if not measured_kinetics_file:
-            raise ValueError(
-                "kinetics_estimator='measured_table' requires settings.measured_kinetics_file"
-            )
-        return MeasuredTableEstimator(
-            table_path=measured_kinetics_file,
-            include_sd=include_sd,
-            ec_kcat_scale=ec_kcat_scale,
-        )
     raise ValueError(f"Unknown kinetics_estimator: {name}")
-
