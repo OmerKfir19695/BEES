@@ -251,15 +251,10 @@ class BEES():
                     reaction_core_enter_iter=enlarger._reaction_core_enter_iter,
                     reaction_obj_by_sig=enlarger._reaction_obj_by_sig,
                     iteration_summaries=enlarger._iteration_summaries,
-                    save_reaction_tree_plots=getattr(settings, "save_reaction_tree_plots", False),
                     save_simulation_plots=getattr(settings, "save_simulation_plots", False),
                     plot_max_species=getattr(settings, "plot_max_species", None),
                     plot_exclude_enzymes=getattr(settings, "plot_exclude_enzymes", True),
                     plot_exclude_cofactors=getattr(settings, "plot_exclude_cofactors", True),
-                    reaction_tree_layout=getattr(settings, "reaction_tree_layout", "graphviz"),
-                    reaction_tree_rankdir=getattr(settings, "reaction_tree_rankdir", "TB"),
-                    reaction_tree_fontsize=int(getattr(settings, "reaction_tree_fontsize", 8) or 8),
-                    core_seen_labels=getattr(enlarger, "_core_seen_labels", set()),
                     bees_object=self.bees_object,
                 )
                 profiles_path = exporter.export_simulation_profiles()
@@ -277,15 +272,10 @@ class BEES():
                         reaction_core_enter_iter=enlarger._reaction_core_enter_iter,
                         reaction_obj_by_sig=enlarger._reaction_obj_by_sig,
                         iteration_summaries=enlarger._iteration_summaries,
-                        save_reaction_tree_plots=getattr(settings, "save_reaction_tree_plots", False),
                         save_simulation_plots=getattr(settings, "save_simulation_plots", False),
                         plot_max_species=getattr(settings, "plot_max_species", None),
                         plot_exclude_enzymes=getattr(settings, "plot_exclude_enzymes", True),
                         plot_exclude_cofactors=getattr(settings, "plot_exclude_cofactors", True),
-                        reaction_tree_layout=getattr(settings, "reaction_tree_layout", "graphviz"),
-                        reaction_tree_rankdir=getattr(settings, "reaction_tree_rankdir", "TB"),
-                        reaction_tree_fontsize=int(getattr(settings, "reaction_tree_fontsize", 8) or 8),
-                        core_seen_labels=getattr(enlarger, "_core_seen_labels", set()),
                         bees_object=self.bees_object,
                     )
                 exporter.export_simulation_plots()
@@ -302,15 +292,10 @@ class BEES():
                     reaction_core_enter_iter=enlarger._reaction_core_enter_iter,
                     reaction_obj_by_sig=enlarger._reaction_obj_by_sig,
                     iteration_summaries=enlarger._iteration_summaries,
-                    save_reaction_tree_plots=getattr(settings, "save_reaction_tree_plots", False),
                     save_simulation_plots=getattr(settings, "save_simulation_plots", False),
                     plot_max_species=getattr(settings, "plot_max_species", None),
                     plot_exclude_enzymes=getattr(settings, "plot_exclude_enzymes", True),
                     plot_exclude_cofactors=getattr(settings, "plot_exclude_cofactors", True),
-                    reaction_tree_layout=getattr(settings, "reaction_tree_layout", "graphviz"),
-                    reaction_tree_rankdir=getattr(settings, "reaction_tree_rankdir", "TB"),
-                    reaction_tree_fontsize=int(getattr(settings, "reaction_tree_fontsize", 8) or 8),
-                    core_seen_labels=getattr(enlarger, "_core_seen_labels", set()),
                     bees_object=self.bees_object,
                 )
             flux_path = exporter.export_flux_analysis()

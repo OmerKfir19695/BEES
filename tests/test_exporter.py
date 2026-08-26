@@ -128,9 +128,6 @@ class TestEnlargerExporter:
             reaction_core_enter_iter=enlarger._reaction_core_enter_iter,
             reaction_obj_by_sig=enlarger._reaction_obj_by_sig,
             iteration_summaries=enlarger._iteration_summaries,
-            save_reaction_tree_plots=getattr(
-                mock_bees_object.settings, "save_reaction_tree_plots", False
-            ),
             save_simulation_plots=getattr(
                 mock_bees_object.settings, "save_simulation_plots", False
             ),
@@ -141,16 +138,6 @@ class TestEnlargerExporter:
             plot_exclude_cofactors=getattr(
                 mock_bees_object.settings, "plot_exclude_cofactors", True
             ),
-            reaction_tree_layout=getattr(
-                mock_bees_object.settings, "reaction_tree_layout", "graphviz"
-            ),
-            reaction_tree_rankdir=getattr(
-                mock_bees_object.settings, "reaction_tree_rankdir", "TB"
-            ),
-            reaction_tree_fontsize=int(
-                getattr(mock_bees_object.settings, "reaction_tree_fontsize", 8) or 8
-            ),
-            core_seen_labels=enlarger._core_seen_labels,
             bees_object=mock_bees_object,
         )
 
@@ -212,62 +199,6 @@ class TestEnlargerExporter:
             rows = list(csv.reader(f))
         assert rows[0][:5] == ["index", "reaction_id", "template", "ec_number", "family"]
         assert any(row and row[0] == "edge species" for row in rows)
-
-    def test_reaction_tree_export_core_only_no_enzymes_or_cofactors(
-        self, mock_bees_object, mock_reaction_generator, output_dir
-    ):
-        """
-        When save_reaction_tree_plots is enabled, exporter should write a PNG that
-        only includes core, non-enzyme, non-cofactor species.
-        """
-        from bees.core_edge_model import SpeciesData
-
-        mock_bees_object.settings.save_reaction_tree_plots = True
-
-        enlarger = IterativeEnlarger(
-            bees_object=mock_bees_object,
-            reaction_generator=mock_reaction_generator,
-            logger=MagicMock(),
-            output_directory=output_dir,
-        )
-
-        enlarger.model.add_core_species(SpeciesData(label="A", concentration=1.0))
-        enlarger.model.add_core_species(SpeciesData(label="B", concentration=0.0))
-        enlarger.model.add_core_species(SpeciesData(label="EnzymeX", is_enzyme=True))
-        enlarger.model.add_core_species(SpeciesData(label="ATP", concentration=1.0))
-
-        rxn = _make_reaction(
-            enzyme_label="EnzymeX",
-            reactant_labels=["A", "ATP"],
-            product_labels=["B", "ATP"],
-        )
-        enlarger.model.core_reactions.append(rxn)
-
-        enlarger._core_seen_labels = set()
-
-        exporter = EnlargerExporter(
-            model=enlarger.model,
-            profiles=enlarger._profiles,
-            output_directory=output_dir,
-            logger=MagicMock(),
-            reaction_id_by_sig=enlarger._reaction_id_by_sig,
-            reaction_first_seen_iter=enlarger._reaction_first_seen_iter,
-            reaction_core_enter_iter=enlarger._reaction_core_enter_iter,
-            reaction_obj_by_sig=enlarger._reaction_obj_by_sig,
-            iteration_summaries=enlarger._iteration_summaries,
-            save_reaction_tree_plots=True,
-            core_seen_labels=enlarger._core_seen_labels,
-            bees_object=mock_bees_object,
-        )
-        exporter.export_reaction_tree(iteration=1, promoted_labels=["A", "B"])
-
-        files = [
-            name
-            for name in os.listdir(output_dir)
-            if name.startswith("reaction_tree_iter1") and name.endswith(".png")
-        ]
-        assert files, "Expected at least one reaction_tree_iter1*.png file to be created"
-
 
 # ---------------------------------------------------------------------------
 # Phase 1 COPASI-compatibility tests:
@@ -356,7 +287,6 @@ def _export_sbml_with_reactions(
     for sd in extra_species:
         enlarger.model.add_core_species(sd)
 
-    enlarger._core_seen_labels = set()
 
     exporter = EnlargerExporter(
         model=enlarger.model,
@@ -368,7 +298,6 @@ def _export_sbml_with_reactions(
         reaction_core_enter_iter=enlarger._reaction_core_enter_iter,
         reaction_obj_by_sig=enlarger._reaction_obj_by_sig,
         iteration_summaries=enlarger._iteration_summaries,
-        core_seen_labels=enlarger._core_seen_labels,
         bees_object=mock_bees_object,
     )
     path = exporter.export_sbml(filename="model.xml", strict_invariant=strict_invariant)
@@ -495,9 +424,9 @@ def test_kinetic_law_is_scaled_by_compartment_volume(mock_bees_object, output_di
     doc = libsbml.SBMLReader().readSBMLFromFile(path)
     m = doc.getModel()
 
-    comp = m.getCompartment("cytosol")
+    comp = m.getCompartment("compartment1")
     assert comp is not None and comp.getSize() == 1.0, (
-        "compartment 'cytosol' must have size 1.0 so amount (mmol) == "
+        "compartment 'compartment1' must have size 1.0 so amount (mmol) == "
         "concentration (mM) and dC/dt equals the bare rate expression"
     )
 
@@ -506,8 +435,8 @@ def test_kinetic_law_is_scaled_by_compartment_volume(mock_bees_object, output_di
         kl = m.getReaction(i).getKineticLaw()
         assert kl is not None, "every reaction should have a kineticLaw"
         ci_names = {n for n in _walk_ast_ci_names(kl.getMath())}
-        assert "cytosol" in ci_names, (
-            "kineticLaw must reference the compartment 'cytosol' as a volume "
+        assert "compartment1" in ci_names, (
+            "kineticLaw must reference the compartment 'compartment1' as a volume "
             "factor; otherwise the exported model runs 1/V too fast in COPASI"
         )
 
@@ -701,8 +630,8 @@ class TestProductionOnlyInvariant:
         path = _export_sbml_with_reactions(rxns, output_dir, mock_bees_object)
         assert path is not None and os.path.exists(path)
 
-    def test_allows_allowlist_terminals(self, output_dir, mock_bees_object):
-        # "Coenzyme A" is in TERMINAL_PRODUCT_ALLOWLIST (case-insensitive lookup).
+    def test_allows_general_cofactor_terminals(self, output_dir, mock_bees_object):
+        # CoA is a general cofactor — production-only cofactors are not leaks.
         rxns = self._make_pair(product_label="Coenzyme A")
         path = _export_sbml_with_reactions(rxns, output_dir, mock_bees_object)
         assert path is not None and os.path.exists(path)
@@ -739,7 +668,6 @@ class TestProductionOnlyInvariant:
                     SpeciesData(label=enz_lab, concentration=0.01, is_enzyme=True)
                 )
             enlarger.model.core_reactions.append(rxn)
-        enlarger._core_seen_labels = set()
 
         logger = MagicMock()
         exporter = EnlargerExporter(
@@ -752,7 +680,6 @@ class TestProductionOnlyInvariant:
             reaction_core_enter_iter=enlarger._reaction_core_enter_iter,
             reaction_obj_by_sig=enlarger._reaction_obj_by_sig,
             iteration_summaries=enlarger._iteration_summaries,
-            core_seen_labels=enlarger._core_seen_labels,
             bees_object=mock_bees_object,
         )
         path = exporter.export_sbml(filename="model.xml", strict_invariant=False)

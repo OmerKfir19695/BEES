@@ -11,12 +11,9 @@ Holds all export/plot functionality for the iterative enlarger.
 from __future__ import annotations
 
 import csv
-import hashlib
 import math
 import os
 import re
-import shutil
-import subprocess
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Set, Tuple, Any
 
@@ -38,24 +35,10 @@ except ImportError:
     _LIBSBML_AVAILABLE = False
 
 
-# Species that legitimately appear as products without a downstream consumer.
-# Free fatty acids (anything ending in "ate" / "oic acid") are matched
-# separately by suffix in the SBML export invariant. Anything else added here
-# is asserting "yes, this accumulating product is biologically real."
-TERMINAL_PRODUCT_ALLOWLIST: Set[str] = {
-    "coenzyme a",
-    "nadp",
-    "nad",
-    "carbon dioxide",
-}
-
-
 def reaction_signature(
     reaction: GeneratedReaction,
 ) -> Tuple[str, Tuple[str, ...], Tuple[str, ...]]:
-    """
-    Canonical reaction signature for stable reaction ID tracking.
-    """
+    """Canonical reaction ID. Enzyme included so isozymes stay distinct."""
     enzyme = str(reaction.enzyme_label).lower().strip()
     reactants = tuple(sorted(str(r).lower().strip() for r in reaction.reactant_labels))
     products = tuple(sorted(str(p).lower().strip() for p in reaction.product_labels))
@@ -64,11 +47,7 @@ def reaction_signature(
 
 @dataclass
 class EnlargerExporter:
-    """
-    Exporter for IterativeEnlarger outputs (CSVs, plots, reaction tree).
-
-    Reads state that was produced by the enlarger module and writes artifacts to disk.
-    """
+    """Writes IterativeEnlarger artifacts (CSVs, plots, SBML)."""
 
     model: CoreEdgeModel
     profiles: List[SimulationResult]
@@ -81,29 +60,15 @@ class EnlargerExporter:
     reaction_obj_by_sig: Dict[Tuple[str, Tuple[str, ...], Tuple[str, ...]], GeneratedReaction]
     iteration_summaries: List[Dict[str, int]]
 
-    # Plot/export settings
-    save_reaction_tree_plots: bool = False
     save_simulation_plots: bool = True
     plot_max_species: Optional[int] = None
     plot_exclude_enzymes: bool = True
     plot_exclude_cofactors: bool = True
-    reaction_tree_layout: str = "graphviz"
-    reaction_tree_rankdir: str = "TB"
-    reaction_tree_fontsize: int = 8
 
-    # Stateful across iterations (used by reaction-tree coloring)
-    core_seen_labels: Optional[Set[str]] = None
-    # Optional access to original input (used for cofactor exclusion in plots)
     bees_object: Optional[Any] = None
 
-    # ------------------------------------------------------------------
-    # Export helpers - flux analysis
-    # ------------------------------------------------------------------
-
     def export_flux_analysis(self, filename: str = "flux_analysis.csv") -> Optional[str]:
-        """
-        Write per-iteration flux data (core/edge growth summary + reaction history).
-        """
+        """Write per-iteration core/edge counts and reaction history CSVs."""
         output_path = os.path.join(self.output_directory, filename)
         with open(output_path, "w", newline="") as f:
             writer = csv.writer(f)
@@ -276,12 +241,7 @@ class EnlargerExporter:
     # ------------------------------------------------------------------
 
     def export_simulation_profiles(self, filename: str = "simulation_profiles.csv") -> Optional[str]:
-        """
-        Write concentration time-series to CSV.
-
-        Concatenates profiles from every iteration into a single file.
-        Returns the output path, or None if there are no profiles.
-        """
+        """Write concentration time-series from every iteration into one CSV."""
         if not self.profiles:
             return None
 
@@ -312,400 +272,11 @@ class EnlargerExporter:
         self.logger.info(f"Exported simulation profiles to {output_path}")
         return output_path
 
-    # ------------------------------------------------------------------
-    # Export helpers - reaction tree (visualisation)
-    # ------------------------------------------------------------------
-
-    def export_reaction_tree(
-        self,
-        *,
-        iteration: int,
-        promoted_labels: Optional[List[str]] = None,
-    ) -> None:
-        """
-        Export a reaction tree plot for this iteration.
-
-        The tree:
-        - Includes only core species.
-        - Excludes enzymes and general cofactors.
-        - Colours newly promoted core species in this iteration differently
-          from species that were already in the core.
-        """
-        if not self.save_reaction_tree_plots or not self.model:
-            return
-
-        if self.core_seen_labels is None:
-            self.core_seen_labels = set()
-
-        core_nodes: List[SpeciesData] = []
-        for sd in self.model.core_species:
-            if sd.is_enzyme:
-                continue
-            if is_general_cofactor_label(sd.label):
-                continue
-            core_nodes.append(sd)
-
-        if not core_nodes:
-            return
-
-        labels = [sd.label for sd in core_nodes]
-        label_set = set(labels)
-
-        promoted_set = set(promoted_labels or [])
-        new_nodes: Set[str] = set()
-        for lab in labels:
-            if lab in promoted_set and lab not in self.core_seen_labels:
-                new_nodes.add(lab)
-
-        self.core_seen_labels.update(labels)
-
-        edges: List[tuple] = []
-        edge_reaction_labels: Dict[tuple, Set[str]] = {}
-        for rxn in self.model.core_reactions:
-            sig = reaction_signature(rxn)
-            reaction_id = self.reaction_id_by_sig.get(sig)
-            reaction_tag = f"R{reaction_id}" if reaction_id is not None else ""
-            for reactant in rxn.reactant_labels:
-                if reactant not in label_set:
-                    continue
-                for product in rxn.product_labels:
-                    if product not in label_set:
-                        continue
-                    if reactant == product:
-                        continue
-                    edge = (reactant, product)
-                    edges.append(edge)
-                    if reaction_tag:
-                        edge_reaction_labels.setdefault(edge, set()).add(reaction_tag)
-
-        edges = sorted(set(edges))
-        if not edges:
-            return
-
-        xs: Dict[str, float] = {}
-        ys: Dict[str, float] = {}
-
-        def _simple_layout() -> None:
-            old_labels = [lab for lab in labels if lab not in new_nodes]
-            new_labels_ordered = [lab for lab in labels if lab in new_nodes]
-
-            def _assign_row(row_labels: List[str], y_val: float) -> None:
-                n = len(row_labels)
-                if n == 0:
-                    return
-                if n == 1:
-                    xs[row_labels[0]] = 0.5
-                    ys[row_labels[0]] = y_val
-                    return
-                for i, lab in enumerate(row_labels):
-                    xs[lab] = i / (n - 1)
-                    ys[lab] = y_val
-
-            _assign_row(old_labels, y_val=0.0)
-            _assign_row(new_labels_ordered, y_val=-1.0)
-
-        def _graphviz_layout() -> bool:
-            dot_exe = shutil.which("dot")
-            if not dot_exe:
-                return False
-
-            rankdir = str(self.reaction_tree_rankdir or "TB").upper()
-            if rankdir not in {"TB", "BT", "LR", "RL"}:
-                rankdir = "TB"
-
-            node_id: Dict[str, str] = {}
-            for i, lab in enumerate(labels):
-                node_id[lab] = f"n{i}"
-
-            dot_lines: List[str] = [
-                "digraph ReactionTree {",
-                f'  rankdir="{rankdir}";',
-                "  splines=true;",
-                "  overlap=false;",
-                "  nodesep=0.35;",
-                "  ranksep=0.6;",
-                "  node [shape=circle];",
-            ]
-            for lab in labels:
-                dot_lines.append(f'  {node_id[lab]} [label="{node_id[lab]}"];')
-            for src, dst in edges:
-                dot_lines.append(f"  {node_id[src]} -> {node_id[dst]};")
-            dot_lines.append("}")
-            dot = "\n".join(dot_lines)
-
-            try:
-                proc = subprocess.run(
-                    [dot_exe, "-Tplain"],
-                    input=dot.encode("utf-8"),
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    check=True,
-                )
-            except Exception:
-                return False
-
-            positions_raw: Dict[str, tuple[float, float]] = {}
-            for line in proc.stdout.decode("utf-8", errors="replace").splitlines():
-                if not line.startswith("node "):
-                    continue
-                parts = line.split()
-                if len(parts) < 4:
-                    continue
-                name = parts[1]
-                try:
-                    x = float(parts[2])
-                    y = float(parts[3])
-                except ValueError:
-                    continue
-                positions_raw[name] = (x, y)
-
-            if not positions_raw:
-                return False
-
-            xs_vals = [p[0] for p in positions_raw.values()]
-            ys_vals = [p[1] for p in positions_raw.values()]
-            min_x, max_x = min(xs_vals), max(xs_vals)
-            min_y, max_y = min(ys_vals), max(ys_vals)
-            span_x = max(1e-9, max_x - min_x)
-            span_y = max(1e-9, max_y - min_y)
-
-            inv_node_id = {v: k for k, v in node_id.items()}
-            for nid, (x, y) in positions_raw.items():
-                lab = inv_node_id.get(nid)
-                if not lab:
-                    continue
-                xs[lab] = (x - min_x) / span_x
-                ys[lab] = (y - min_y) / span_y
-            return len(xs) > 0 and len(ys) > 0
-
-        used_graphviz = (
-            str(self.reaction_tree_layout or "graphviz").lower() == "graphviz"
-            and _graphviz_layout()
-        )
-        if not used_graphviz:
-            _simple_layout()
-
-        fig, ax = plt.subplots(figsize=(16, 12), facecolor="white")
-        ax.set_facecolor("white")
-
-        for src, dst in edges:
-            ax.annotate(
-                "",
-                xy=(xs[dst], ys[dst]),
-                xytext=(xs[src], ys[src]),
-                arrowprops=dict(
-                    arrowstyle="->",
-                    color="#555555",
-                    linewidth=1.0,
-                    alpha=0.8,
-                ),
-            )
-            rid_set = edge_reaction_labels.get((src, dst), set())
-            if rid_set:
-                rid_text = ",".join(
-                    sorted(
-                        rid_set,
-                        key=lambda s: int(s[1:])
-                        if s.startswith("R") and s[1:].isdigit()
-                        else 10**9,
-                    )
-                )
-                mid_x = (xs[src] + xs[dst]) / 2.0
-                mid_y = (ys[src] + ys[dst]) / 2.0
-                ax.annotate(
-                    rid_text,
-                    xy=(mid_x, mid_y),
-                    xycoords="data",
-                    xytext=(0, 7),
-                    textcoords="offset points",
-                    ha="center",
-                    va="bottom",
-                    fontsize=10,
-                    color="#222222",
-                    zorder=5,
-                    bbox=dict(
-                        boxstyle="round,pad=0.18",
-                        facecolor="white",
-                        edgecolor="none",
-                        alpha=0.85,
-                    ),
-                )
-
-        old_color = "#A6CEE3"
-        new_color = "#FB9A99"
-
-        def _shorten_label(label: str) -> str:
-            s = str(label).strip()
-            s = re.sub(r"\s+", " ", s)
-            if len(s) <= 10 and " " not in s:
-                return s
-            tokens = re.split(r"[\s\-_]+", s)
-            keep = []
-            for t in tokens:
-                if not t:
-                    continue
-                if t.isdigit() or re.fullmatch(r"\d+[A-Za-z]*", t or ""):
-                    keep.append(t)
-                else:
-                    keep.append(t[0].upper())
-            base = "".join(keep) or s[:6].upper()
-            if len(base) > 12:
-                base = base[:12]
-            return base
-
-        cumulative_mapping_path = os.path.join(
-            self.output_directory,
-            "reaction_tree_labels.csv",
-        )
-        full_to_short: Dict[str, str] = {}
-        first_seen_by_full: Dict[str, int] = {}
-        used_short_labels: Set[str] = set()
-
-        if os.path.exists(cumulative_mapping_path):
-            try:
-                with open(cumulative_mapping_path, "r", newline="") as f:
-                    reader = csv.DictReader(f)
-                    for row in reader:
-                        full = str(row.get("full_label", "")).strip()
-                        short = str(row.get("short_label", "")).strip()
-                        first_seen_raw = str(row.get("first_seen_iteration", "")).strip()
-                        if not full or not short:
-                            continue
-                        try:
-                            first_seen = int(first_seen_raw)
-                        except ValueError:
-                            first_seen = iteration
-                        if full not in full_to_short:
-                            full_to_short[full] = short
-                            first_seen_by_full[full] = first_seen
-                            used_short_labels.add(short)
-            except Exception:
-                full_to_short = {}
-                first_seen_by_full = {}
-                used_short_labels = set()
-
-        for lab in labels:
-            if lab in full_to_short:
-                continue
-            base = _shorten_label(lab)
-            candidate = base
-            if candidate in used_short_labels:
-                digest = hashlib.blake2s(
-                    str(lab).encode("utf-8"), digest_size=2
-                ).hexdigest()
-                suffix = digest.upper()
-                candidate = f"{base}-{suffix}"
-            if candidate in used_short_labels:
-                i = 2
-                while f"{candidate}{i}" in used_short_labels:
-                    i += 1
-                candidate = f"{candidate}{i}"
-            full_to_short[lab] = candidate
-            first_seen_by_full[lab] = iteration
-            used_short_labels.add(candidate)
-
-        try:
-            with open(cumulative_mapping_path, "w", newline="") as f:
-                w = csv.writer(f)
-                w.writerow(["short_label", "full_label", "first_seen_iteration"])
-                for full in sorted(
-                    full_to_short.keys(),
-                    key=lambda x: (first_seen_by_full.get(x, iteration), x.lower()),
-                ):
-                    w.writerow(
-                        [
-                            full_to_short[full],
-                            full,
-                            first_seen_by_full.get(full, iteration),
-                        ]
-                    )
-        except Exception as exc:
-            self.logger.warning("Failed to write cumulative label mapping to %s: %s", cumulative_mapping_path, exc)
-
-        for lab in labels:
-            display_label = str(full_to_short.get(lab, lab))
-            color = new_color if lab in new_nodes else old_color
-            lines = display_label.splitlines() if display_label else [""]
-            n_lines = max(1, len(lines))
-            max_line_len = max((len(line) for line in lines), default=0)
-            s = 400 + 45 * (max_line_len**1.15) + 220 * n_lines
-            s = max(700, min(s, 8000))
-            ax.scatter(
-                xs[lab],
-                ys[lab],
-                s=s,
-                c=color,
-                edgecolors="#333333",
-                linewidths=1.0,
-                zorder=3,
-            )
-            ax.text(
-                xs[lab],
-                ys[lab],
-                display_label,
-                ha="center",
-                va="center",
-                fontsize=max(8, int(self.reaction_tree_fontsize)),
-                color="black",
-                zorder=4,
-                wrap=True,
-            )
-
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_xlim(-0.1, 1.1)
-        min_y = min(ys.values())
-        max_y = max(ys.values())
-        ax.set_ylim(min_y - 0.5, max_y + 0.5)
-
-        ax.set_title(f"Reaction tree – iteration {iteration}", fontsize=14)
-
-        from matplotlib.patches import Patch
-
-        legend_handles = [
-            Patch(facecolor=old_color, edgecolor="#333333", label="Existing core species"),
-            Patch(facecolor=new_color, edgecolor="#333333", label="New in this iteration"),
-        ]
-        ax.legend(
-            handles=legend_handles,
-            loc="upper left",
-            bbox_to_anchor=(1.02, 1.0),
-            borderaxespad=0.0,
-            frameon=False,
-            fontsize=9,
-        )
-
-        fig.tight_layout(rect=[0.0, 0.0, 0.78, 1.0])
-
-        out_path = os.path.join(
-            self.output_directory,
-            f"reaction_tree_iter{iteration}.png",
-        )
-        fig.savefig(
-            out_path,
-            dpi=250,
-            bbox_inches="tight",
-            pad_inches=0.25,
-            facecolor="white",
-            edgecolor="none",
-        )
-        plt.close(fig)
-
-        self.logger.info(
-            f"Exported reaction tree plot for iteration {iteration} to {out_path}"
-        )
-
-    # ------------------------------------------------------------------
-    # Export helpers - simulation plots
-    # ------------------------------------------------------------------
-
     def export_simulation_plots(
         self,
         filename_pattern: str = "simulation_plot_iter{}.png",
     ) -> Optional[List[str]]:
-        """
-        Plot concentration vs time for each iteration and save to PNG.
-        """
+        """Plot concentration vs time for each iteration and save to PNG."""
         if not self.profiles:
             return None
 
@@ -806,7 +377,7 @@ class EnlargerExporter:
         return paths if paths else None
 
     # ------------------------------------------------------------------
-    # Export helpers - SBML (for COPASI / any SBML-compatible tool)
+    # Export helpers - SBML (forany SBML-compatible tool)
     # ------------------------------------------------------------------
 
     def export_sbml(
@@ -820,42 +391,12 @@ class EnlargerExporter:
         # terminal products do not block export).
         strict_invariant: bool = False,
     ) -> Optional[str]:
-        """
-        Export the reaction network as an SBML Level 3 Version 2 file.
+        """Export the network as SBML Level 3 Version 2.
 
-        Structure of the generated SBML:
-        - One compartment: ``cytosol`` volume = 1 L, so concentrations in mM
-          map directly to amounts in mmol).
-        - One ``species`` per model species; ``initialConcentration`` is the
-          value from the last iteration (mM).  Enzyme species are set
-          ``constant=true, boundaryCondition=true`` so COPASI treats them as
-          fixed parameters.
-        - One ``parameter`` per unique enzyme holding its concentration (mM).
-        - One ``reaction`` per core reaction (or core + edge if
-          ``core_only=False``) with:
-          - Explicit ``listOfReactants`` / ``listOfProducts`` stoichiometries.
-          - A Michaelis-Menten ``kineticLaw`` written as a MathML formula:
-            ``kcat * E * prod_i(S_i / (Km_i + S_i))``
-          - All kinetic constants stored as local ``parameter`` elements
-            inside the kineticLaw.
-
-        Args:
-            filename: Output file name inside the project output directory.
-            core_only: If True (default) export only core reactions/species.
-                       Set False to include edge species/reactions as well.
-            strict_invariant: If True raise ``ValueError`` when any non-boundary,
-                       non-terminal species is produced by some reaction but
-                       never consumed by any reaction. Default False — the
-                       check logs a warning instead, since with constant
-                       cofactor pools an irreversible production-only species
-                       would accumulate without bound (the original FAS bug
-                       pattern), but most such findings in a converged model
-                       are legitimate branch exits or terminal products. Set
-                       True for stricter dev-time checks.
-
-        Returns:
-            Absolute path of the written SBML file, or None (if libsbml is
-            not installed or the model is empty)
+        One compartment ``compartment1`` (1 L so mmol = mM). Core-only by default.
+        Kinetic laws: reversible Liebermeister-Klipp when thermo is usable,
+        else forward-only MM. ``strict_invariant=True`` raises on production-only
+        species (warns by default). See knowledge/functions/EXPORTER.md.
         """
         if not _LIBSBML_AVAILABLE:
             self.logger.warning(
@@ -917,23 +458,20 @@ class EnlargerExporter:
         model.setVolumeUnits("litre")
 
         # ----------------------------------------------------------------
-        # 2.  One compartment: cytosol, volume = 1 L.
+        # 2.  One compartment:  compartment1, volume = 1 L.
         #     Each kineticLaw below is multiplied by this compartment so it is a
         #     proper SBML *substance* (amount/time) rate; with size = 1 the amount
         #     in mmol equals the concentration in mM, and dC/dt comes out equal to
         #     the bare rate expression (see kineticLaw construction comment).
         # ----------------------------------------------------------------
         comp = model.createCompartment()
-        comp.setId("cytosol")
-        comp.setName("Cytosol")
-        comp.setSize(1.0)  # 1 L (see note above; size cancels once rate law carries it)
+        comp.setId("compartment1")
+        comp.setName("compartment1")
+        comp.setSize(1.0)
         comp.setConstant(True)
         comp.setSpatialDimensions(3)
 
-        # ----------------------------------------------------------------
-        # 3.  Species
-        # ----------------------------------------------------------------
-        # Build a safe SBML id from a label (SBML ids must start with letter/underscore)
+        # SBML ids must start with a letter or underscore.
         def _sbml_id(label: str) -> str:
             s = re.sub(r"[^A-Za-z0-9_]", "_", str(label).strip())
             if s and s[0].isdigit():
@@ -952,7 +490,6 @@ class EnlargerExporter:
             label_to_id[sd.label.lower().strip()] = sid
             used_ids.add(sid)
 
-        # Build initial concentration mapping from original input
         input_concs = {}
         if self.bees_object is not None:
             for sp in getattr(self.bees_object, "species", []) or []:
@@ -966,7 +503,7 @@ class EnlargerExporter:
             sp = model.createSpecies()
             sp.setId(sid)
             sp.setName(sd.label)
-            sp.setCompartment("cytosol")
+            sp.setCompartment("compartment1")
             conc = max(input_concs.get(lc, 0.0) or 0.0, 0.0)
             sp.setInitialConcentration(conc)
             sp.setHasOnlySubstanceUnits(False)
@@ -985,19 +522,11 @@ class EnlargerExporter:
             if bool(getattr(sd, "constant", False)) or bool(getattr(sd, "is_enzyme", False))
         }
 
-        # Production-only invariant: catch incomplete enlarger snapshots
-        # before they reach a downstream integrator. Any non-boundary,
-        # non-terminal species that gets produced but never consumed will
-        # accumulate without bound under integration (the FAS bug:
-        # 3-oxo-(11Z)-octadec-ACP was production-only as an edge before its
-        # FabG reduction was discovered, leading to a 4× carbon overshoot).
+        # Production-only invariant (FAS 3-oxo-octadec-ACP bug); strict_invariant raise vs warn.
         produced_lcs: Set[str] = set()
         consumed_lcs: Set[str] = set()
         for rxn in reactions:
-            # For reversible reactions the reverse direction consumes products
-            # and produces reactants — account for both directions so that a
-            # species that is only the product of a reversible core reaction
-            # (e.g. an isomerization with Keq≈1) is not incorrectly flagged.
+            # Reversible both-directions so isomerizations are not flagged.
             is_rev = (
                 getattr(rxn.template, "reversible", False)
                 and getattr(rxn, "thermo", None) is not None
@@ -1014,10 +543,7 @@ class EnlargerExporter:
                 if is_rev:
                     consumed_lcs.add(lc)
 
-        # Also collect consumers from edge reactions (not included in core-only
-        # export). Species consumed only by edge reactions are branch exits —
-        # the enlarger found them but hadn't yet promoted their downstream
-        # reactions before termination. These are not structural leaks.
+        # Edge-only consumers = branch exits, not leaks.
         edge_consumed_lcs: Set[str] = set()
         for rxn in self.model.edge_reactions:
             for lab in getattr(rxn, "reactant_labels", ()) or ():
@@ -1028,19 +554,11 @@ class EnlargerExporter:
         for sp_lc in sorted(produced_lcs - consumed_lcs):
             if sp_lc in boundary_labels:
                 continue
-            # General cofactor pools (ATP/ADP, NAD/NADH, H+, H2O, etc.) may
-            # legitimately appear as net products in pathway-limited snapshots.
-            # Treat them as exempt from this structural leak invariant.
+            # Cofactors + FFA (ate / oic acid) exempt.
             if is_general_cofactor_label(sp_lc):
                 continue
-            if sp_lc in TERMINAL_PRODUCT_ALLOWLIST:
-                continue
-            # Free fatty acid family: bare carboxylates that exit the cycle.
             if sp_lc.endswith("ate") or sp_lc.endswith("oic acid"):
                 continue
-            # Species consumed by an edge reaction is a branch exit: the
-            # enlarger found it but termination fired before promoting the
-            # downstream edge reactions. Not a structural leak.
             if sp_lc in edge_consumed_lcs:
                 branch_exits.append(sp_lc)
                 continue
@@ -1068,10 +586,7 @@ class EnlargerExporter:
                 raise ValueError(msg)
             self.logger.warning(msg)
 
-        # ----------------------------------------------------------------
-        # 4.  Global parameters: enzyme concentrations
-        # ----------------------------------------------------------------
-        enzyme_param_ids: Dict[str, str] = {}  # enzyme_label_lc -> param_id
+        enzyme_param_ids: Dict[str, str] = {}
         for sd in species_list:
             if not getattr(sd, "is_enzyme", False):
                 continue
@@ -1089,9 +604,6 @@ class EnlargerExporter:
             p.setConstant(True)
             enzyme_param_ids[lc] = pid
 
-        # ----------------------------------------------------------------
-        # 5.  Reactions
-        # ----------------------------------------------------------------
         used_rxn_ids: Set[str] = set()
 
         for rxn_idx, rxn in enumerate(reactions, start=1):
@@ -1102,19 +614,12 @@ class EnlargerExporter:
                 rid = f"R{rxn_num}_{rxn_idx}"
             used_rxn_ids.add(rid)
 
-            # Fallback reactions (nan ΔG°', source="fallback") are exported as
-            # irreversible forward-only MM — same treatment as source="disabled".
-            # The use_rev gate below rejects nan Keq, so no reversible formula
-            # is written; the reaction is still topologically correct in SBML.
-
+            # Fallback thermo = irreversible forward-only MM.
             sbml_rxn = model.createReaction()
             sbml_rxn.setId(rid)
-            # Reversibility flag, name, arrow, and notes are emitted AFTER the
-            # kinetic-law branch is chosen (further down) so they always agree
-            # with the actual rate law (forward-only vs. reversible Liebermeister).
+            # Reversibility flag AFTER kinetic-law branch.
             td = getattr(rxn, "thermo", None)
 
-            # Reactants
             for r_label in rxn.reactant_labels:
                 lc = r_label.lower().strip()
                 sid = label_to_id.get(lc)
@@ -1126,7 +631,6 @@ class EnlargerExporter:
                 sr.setStoichiometry(float(coeff))
                 sr.setConstant(True)
 
-            # Products
             for p_label in rxn.product_labels:
                 lc = p_label.lower().strip()
                 sid = label_to_id.get(lc)
@@ -1138,8 +642,6 @@ class EnlargerExporter:
                 sp2.setStoichiometry(float(coeff))
                 sp2.setConstant(True)
 
-            # KineticLaw: reversible Liebermeister-Klipp MM when thermo data
-            # is available, otherwise forward-only MM: kcat * E * ∏(Si/(Km_Si+Si))
             kin = getattr(rxn, "kinetics", None)
             if kin is None or getattr(rxn, "rate_law", None) is None:
                 self.logger.debug(
@@ -1147,9 +649,6 @@ class EnlargerExporter:
                     "reaction structure exported without rate equation",
                     rid,
                 )
-                # No kinetic law → reaction is structurally present but has
-                # no rate. Mark irreversible and emit metadata before skipping
-                # to next reaction so the file is self-consistent.
                 sbml_rxn.setName(
                     f"{rxn.enzyme_label}: {' + '.join(rxn.reactant_labels)} -> {' + '.join(rxn.product_labels)}"
                 )
@@ -1186,10 +685,7 @@ class EnlargerExporter:
                     return v
                 return km_single
 
-            # Determine whether to emit the reversible formula.
-            # Requires: finite Keq, Haldane-derived kcat_rev, and kcat available.
-            # Product Kms default to 1.0 mM when absent (consistent with how
-            # kcat_rev is computed by haldane_kcat_rev when product list is empty).
+            # Product Km default 1.0 matches empty Haldane list.
             use_rev = (
                 td is not None
                 and not td.irreversible
@@ -1201,20 +697,17 @@ class EnlargerExporter:
                 and kcat_val is not None
             )
 
-            # Build substrate Km pairs. Boundary species (H+, H2O, enzymes)
-            # are skipped — their fixed concentrations don't limit the rate and
-            # their activities are already incorporated into the Keq.
             substrate_km_pairs: List[Tuple[str, str, int]] = []
             for r_label in rxn.reactant_labels:
                 r_lc = r_label.lower().strip()
                 if r_lc in boundary_labels:
-                    continue  # fixed concentration, no Km term
+                    continue
                 sid = label_to_id.get(r_lc)
                 if sid is None:
-                    continue  # species not exported — skip term
+                    continue
                 km_val: Optional[float] = _km_for_label(r_label)
                 if km_val is None or km_val <= 0:
-                    use_rev = False  # missing Km for variable substrate → cannot write sat term
+                    use_rev = False
                     continue
                 km_pid = f"Km_{rid}_{_sbml_id(r_label)}"
                 suffix_n = 2
@@ -1231,16 +724,12 @@ class EnlargerExporter:
                 nu = abs(rxn.stoichiometry.get(r_label, 1))
                 substrate_km_pairs.append((sid, km_pid, nu))
 
-            # Build product Km pairs for variable (non-boundary) products.
-            # When no DB-derived Km is available, default to 1.0 mM — this is
-            # self-consistent because kcat_rev was computed via Haldane with
-            # prod_p = 1.0 (empty product Km list → ∏Km_P = 1).
             product_km_pairs: List[Tuple[str, str, int]] = []
             if use_rev:
                 for p_label in rxn.product_labels:
                     p_lc = p_label.lower().strip()
                     if p_lc in boundary_labels:
-                        continue  # fixed concentration, omit from reverse numerator
+                        continue
                     sid_p = label_to_id.get(p_lc)
                     if sid_p is None:
                         use_rev = False
@@ -1263,14 +752,12 @@ class EnlargerExporter:
                     nu = abs(rxn.stoichiometry.get(p_label, 1))
                     product_km_pairs.append((sid_p, km_pid_p, nu))
                 if not product_km_pairs:
-                    use_rev = False  # all products are boundary — no thermodynamic coupling
+                    use_rev = False
 
-            # Enzyme token
             e_lc = rxn.enzyme_label.lower().strip()
             e_param = enzyme_param_ids.get(e_lc)
             e_token = e_param if e_param is not None else "0.001"
 
-            # kcat forward parameter
             pid_kcat: Optional[str] = None
             if kcat_val is not None:
                 pid_kcat = f"kcat_{rid}"
@@ -1280,11 +767,7 @@ class EnlargerExporter:
                 p_kcat.setValue(float(kcat_val))
                 p_kcat.setConstant(True)
 
-            # Build formula
             if use_rev and substrate_km_pairs and product_km_pairs and pid_kcat:
-                # Reversible Liebermeister-Klipp:
-                #   v = (kcat_f * E * ∏(Si/Km_Si) − kcat_r * E * ∏(Pj/Km_Pj))
-                #       / (∏(1+Si/Km_Si) + ∏(1+Pj/Km_Pj) − 1)
                 pid_kcat_rev = f"kcat_rev_{rid}"
                 p_kcat_rev = model.createParameter()
                 p_kcat_rev.setId(pid_kcat_rev)
@@ -1329,10 +812,7 @@ class EnlargerExporter:
             else:
                 formula = "0"
 
-            # Opt-in end-product feedback inhibition (Enzyme.feedback_inhibition),
-            # the simulator's Overlay 3. Multiply the rate by ∏_k 1/(1+([I_k]/Ki)^h)
-            # over the named inhibitor species. Inhibitors are not consumed, so each
-            # is declared as a modifierSpeciesReference (required for kineticLaw refs).
+            # Feedback = modifierSpeciesReference (not consumed).
             fb = getattr(rxn, "feedback_inhibitors", None)
             if formula != "0" and isinstance(fb, dict) and fb:
                 existing_mods = {
@@ -1367,21 +847,13 @@ class EnlargerExporter:
                 if fb_terms:
                     formula = f"({formula}) * ({' * '.join(fb_terms)})"
 
-            # SBML defines a kineticLaw as a *substance* rate (amount/time); a solver
-            # then computes dC/dt = kineticLaw / V.  The formulas above are
-            # *concentration* rates (mM/s), so they must be multiplied by the
-            # compartment volume to survive that division — exactly RMG's liquid
-            # solver `res = core_species_rates * V`.  Without this the exported model
-            # integrates 1/V times too fast in COPASI / roadrunner.
+            # kineticLaw * V (substance rate; else 1/V too fast in COPASI).
             if formula != "0":
-                formula = f"cytosol * ({formula})"
+                formula = f"compartment1 * ({formula})"
 
-            # Use the L3 parser (parseL3Formula + setMath) rather than the
-            # legacy L1 setFormula() — L3 handles modern operators correctly
-            # and keeps the AST clean for downstream tools like COPASI.
+            # L3 parser, not L1 setFormula.
             _ast = _libsbml.parseL3Formula(formula)
             if _ast is None:
-                # Fall back to legacy formula; log so we can spot it.
                 self.logger.warning(
                     "SBML: %s parseL3Formula failed (%s) — falling back to setFormula",
                     rid, _libsbml.getLastParseL3Error(),
@@ -1390,8 +862,6 @@ class EnlargerExporter:
             else:
                 kl.setMath(_ast)
 
-            # Reversibility flag, name, arrow, and notes — emitted now so they
-            # always match the actual kinetic law emitted above.
             emitted_reversible = bool(
                 use_rev
                 and substrate_km_pairs
@@ -1414,7 +884,6 @@ class EnlargerExporter:
                     notes_parts.append(f"Keq={td.keq:.4g}")
                 if td.kcat_rev is not None:
                     notes_parts.append(f"kcat_rev={td.kcat_rev:.4g} 1/s")
-                # irreversible= reflects the emitted SBML attribute, not raw thermo
                 notes_parts.append(f"irreversible={not emitted_reversible}")
                 sbml_rxn.setNotes(
                     "<body xmlns='http://www.w3.org/1999/xhtml'><p>"
@@ -1423,12 +892,12 @@ class EnlargerExporter:
                 )
 
         # ----------------------------------------------------------------
-        # 5b. Global quantities for the released free fatty acid, so any SBML
-        #     tool reads the product directly (no post-processing):
-        #       total_free_FA_uM        = 1000 * Σ [acid]              (molar total)
-        #       palmitic_equivalents_uM = 1000 * Σ (carbons/16)·[acid]
-        #         — the Yu-2011 / Ruppe "palmitic equivalents" metric (C16 = 1 unit).
-        #     Species concentrations are mM; the ×1000 reports µM (figure units).
+        # FAS / Yu-2011 convenience (not generic SBML).  use for regenrate the results without
+        # extreanl tools. Optional assignment rules for free-acid totals and palmitic
+        # equivalents when free FA species are present. Safe no-op for
+        # non-FAS models (no *-oate labels → nothing added). 
+        # time-course metrics are usually computed outside this exporter;
+        # keep for now.
         # ----------------------------------------------------------------
         _FA_STEMS = [  # most specific first so e.g. 'hexadec' wins over 'hex'
             ("icosen", 20), ("icosan", 20), ("octadecen", 18), ("octadecan", 18),
@@ -1449,7 +918,7 @@ class EnlargerExporter:
 
         fa_total_terms: List[str] = []
         fa_palm_terms: List[str] = []
-        fa_band_terms: List[str] = []  # Yu-2011 S2A TLC band = C14–C18 only
+        fa_band_terms: List[str] = []
         for sd in species_list:
             c = _fa_carbons(sd.label)
             if c is None:
@@ -1457,10 +926,7 @@ class EnlargerExporter:
             sid = label_to_id[sd.label.lower().strip()]
             fa_total_terms.append(sid)
             fa_palm_terms.append(f"({c}/16) * {sid}")
-            # Yu 2011 kinetic assay quantifies a single TLC band in which C14–C18
-            # free acids comigrate (identical Rf); shorter acids sit elsewhere and
-            # water-soluble ones are lost in hexanes extraction. So the S2A time
-            # course is C14–C18 only — this is the correct like-for-like observable.
+            # Palmitic equivalents C14-C18 (Yu 2011 TLC band).
             if c in (14, 16, 18):
                 fa_band_terms.append(f"({c}/16) * {sid}")
 
@@ -1498,9 +964,6 @@ class EnlargerExporter:
                     "1000 * (" + " + ".join(fa_band_terms) + ")",
                 )
 
-        # ----------------------------------------------------------------
-        # 6.  Validate and write
-        # ----------------------------------------------------------------
         doc.setConsistencyChecks(
             _libsbml.LIBSBML_CAT_GENERAL_CONSISTENCY, True
         )
