@@ -1,7 +1,4 @@
-"""Shared helpers for the BEES rule layer (laws + calibrations).
-
-Rationale: knowledge/functions/HELPERS.md
-"""
+"""Shared helpers for the BEES rule layer (laws + calibrations)."""
 
 from __future__ import annotations
 
@@ -14,9 +11,8 @@ _CO2_LABELS = frozenset({"carbon dioxide", "co2", "carbon-dioxide", "co₂"})
 _CARRIER_SUFFIXES = ("-[acp]", "-[coa]", "-coa")
 _BARE_CARRIERS = frozenset({"", "holo", "acp", "coa", "holo-"})
 
-
 def detect_acyl_chain_length(label: str, smiles: Optional[str] = None) -> Optional[int]:
-    """Acyl carbon count (incl. carbonyl), or None. See HELPERS.md."""
+    """Acyl carbon count (incl. carbonyl), or None."""
     if not label:
         return None
     lab = label.lower().strip()
@@ -42,9 +38,8 @@ def detect_acyl_chain_length(label: str, smiles: Optional[str] = None) -> Option
         return _acyl_chain_from_smiles(smiles)
     return None
 
-
 def _acyl_chain_from_smiles(smiles: str) -> Optional[int]:
-    """Count acyl carbons from SMILES (thioester/carboxyl anchor). See HELPERS.md."""
+    """Count acyl carbons from SMILES (thioester/carboxyl anchor)."""
     try:
         from rdkit import Chem
     except Exception:
@@ -88,7 +83,6 @@ def _acyl_chain_from_smiles(smiles: str) -> Optional[int]:
                 stack.append(nb.GetIdx())
     return len(seen) if seen else None
 
-
 def _ec_norm(ec) -> Optional[str]:
     """'EC 3.1.2.14' -> '3.1.2.14'."""
     if not ec:
@@ -98,9 +92,8 @@ def _ec_norm(ec) -> Optional[str]:
         s = s[3:].strip()
     return s or None
 
-
 def _reaction_acyl_substrate_n(reaction) -> Optional[int]:
-    """Longest acyl-chain length among substrates, or None. See HELPERS.md."""
+    """Longest acyl-chain length among substrates, or None."""
     kin = getattr(reaction, "kinetics", None)
     stoich = getattr(reaction, "stoichiometry", None) or {}
     smiles_map = (getattr(kin, "compound_smiles", None) or {}) if kin is not None else {}

@@ -10,14 +10,13 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Set, Tuple
 
 from bees.core_edge_model import CoreEdgeModel, SpeciesData
-from bees.exporter import EnlargerExporter, reaction_signature
+from bees.exporter import reaction_signature
 from bees.flux_calculator import (
     identify_insignificant_species_from_peak_ratios,
     identify_significant_species_at_interrupt,
 )
 from bees.reaction_generator import GeneratedReaction, ReactionGenerator
 from bees.simulator import ODESimulator, SimulationResult
-
 
 @dataclass
 class EnlargerResult:
@@ -102,9 +101,6 @@ class IterativeEnlarger:
         self.save_ode_equations: bool = getattr(
             settings, "save_ode_equations", False
         )
-        self.save_reaction_tree_plots: bool = getattr(
-            settings, "save_reaction_tree_plots", False
-        )
         self.save_simulation_plots: bool = getattr(
             settings, "save_simulation_plots", True
         )
@@ -117,21 +113,11 @@ class IterativeEnlarger:
         self.plot_exclude_cofactors: bool = getattr(
             settings, "plot_exclude_cofactors", True
         )
-        self.reaction_tree_layout: str = getattr(
-            settings, "reaction_tree_layout", "graphviz"
-        )
-        self.reaction_tree_rankdir: str = getattr(
-            settings, "reaction_tree_rankdir", "TB"
-        )
-        self.reaction_tree_fontsize: int = int(
-            getattr(settings, "reaction_tree_fontsize", 8) or 8
-        )
 
         self.model = CoreEdgeModel()
         self._profiles: List[SimulationResult] = []
         self._edge_species_created_iter: Dict[str, int] = {}
         self._ingest_iteration: int = 0
-        self._core_seen_labels: Set[str] = set()
         self._reaction_id_by_sig: Dict[Tuple[str, Tuple[str, ...], Tuple[str, ...]], int] = {}
         self._reaction_first_seen_iter: Dict[Tuple[str, Tuple[str, ...], Tuple[str, ...]], int] = {}
         self._reaction_core_enter_iter: Dict[Tuple[str, Tuple[str, ...], Tuple[str, ...]], Optional[int]] = {}
@@ -149,7 +135,7 @@ class IterativeEnlarger:
         self._global_smiles_map: Dict[str, str] = self._build_global_smiles_map()
 
     # ------------------------------------------------------------------
-    # Public entry point 
+    #  Entry point 
     # ------------------------------------------------------------------
 
     def run(self) -> EnlargerResult:
@@ -158,9 +144,6 @@ class IterativeEnlarger:
         self.logger.info("=" * 60)
 
         self._initialise_model()
-        self._core_seen_labels = {
-            s.label for s in self.model.core_species
-        }
 
         self.reaction_generator.ensure_estimator_initialized()
 
@@ -237,7 +220,6 @@ class IterativeEnlarger:
                 and self.tol_move_edge_reaction_to_core > 0
                 and sim_result.max_edge_reaction_dlnaccum
             ):
-                # Sort edge reactions by dlnaccum descending; take violators.
                 violators = [
                     (sig, dln)
                     for sig, dln in sim_result.max_edge_reaction_dlnaccum.items()
@@ -259,7 +241,6 @@ class IterativeEnlarger:
                         f"promoting {len(rxn_promote_species)} associated species."
                     )
 
-            # Interrupted pass: promote, enlarge, and continue to next iteration.
             if sim_result.simulation_interrupted:
                 significant_sub = identify_significant_species_at_interrupt(
                     sim_result.interrupt_edge_rates,
@@ -269,11 +250,7 @@ class IterativeEnlarger:
                     abs_flux_floor=self.abs_flux_floor,
                 )
                 if not significant_sub and not rxn_promote_species:
-                    # The interrupt fired but nothing new can be promoted (e.g. a
-                    # reaction whose dlnaccum is high but all participants are already
-                    # core).  Resume the simulation from the interrupt point rather
-                    # than terminating — the interrupt criterion may not fire again
-                    # once the system has evolved past this transient.
+                    # Interrupt but nothing promotable: resume from here, don't terminate.
                     t_resume = float(sim_result.t[-1]) if len(sim_result.t) > 0 else 0.0
                     if t_resume < self.end_time * 0.99:
                         max_edge_abs = max(
@@ -286,8 +263,6 @@ class IterativeEnlarger:
                                 f"species (R_char={sim_result.interrupt_char_rate:.4e}, "
                                 f"max |R_edge|={max_edge_abs:.4e}); resuming simulation."
                             )
-                        # Re-run from the interrupt point to end_time using current
-                        # model concentrations (already updated by the ODE result).
                         remaining_time = self.end_time - t_resume
                         sim_result2 = simulator.simulate(
                             end_time=remaining_time,
@@ -296,20 +271,14 @@ class IterativeEnlarger:
                             tol_move_edge_reaction_to_core=self.tol_move_edge_reaction_to_core,
                         )
                         if sim_result2.success and not sim_result2.simulation_interrupted:
-                            # Completed without another interrupt — treat as a
-                            # full convergence-check pass (fall through to the
-                            # non-interrupted path below by replacing sim_result).
                             sim_result = sim_result2
                         elif sim_result2.simulation_interrupted:
-                            # Another interrupt fired — handle it next iteration.
                             sim_result = sim_result2
-                        # If ODE failed on resume, fall through to the break below.
                         if not sim_result.success:
                             result.convergence_reason = f"ODE failure on resume: {sim_result.message}"
                             if self.logger:
                                 self.logger.warning(f"  {result.convergence_reason}")
                             break
-                        # Re-evaluate with the new sim_result.
                         significant_sub = identify_significant_species_at_interrupt(
                             sim_result.interrupt_edge_rates,
                             sim_result.interrupt_char_rate,
@@ -483,32 +452,6 @@ class IterativeEnlarger:
                     f"Exceeded max_edge_species ({self.max_edge_species})."
                 )
                 self.logger.info(result.convergence_reason)
-                if self.save_reaction_tree_plots:
-                    exporter = EnlargerExporter(
-                        model=self.model,
-                        profiles=self._profiles,
-                        output_directory=self.output_directory,
-                        logger=self.logger,
-                        reaction_id_by_sig=self._reaction_id_by_sig,
-                        reaction_first_seen_iter=self._reaction_first_seen_iter,
-                        reaction_core_enter_iter=self._reaction_core_enter_iter,
-                        reaction_obj_by_sig=self._reaction_obj_by_sig,
-                        iteration_summaries=self._iteration_summaries,
-                        save_reaction_tree_plots=self.save_reaction_tree_plots,
-                        save_simulation_plots=self.save_simulation_plots,
-                        plot_max_species=self.plot_max_species,
-                        plot_exclude_enzymes=self.plot_exclude_enzymes,
-                        plot_exclude_cofactors=self.plot_exclude_cofactors,
-                        reaction_tree_layout=self.reaction_tree_layout,
-                        reaction_tree_rankdir=self.reaction_tree_rankdir,
-                        reaction_tree_fontsize=self.reaction_tree_fontsize,
-                        core_seen_labels=self._core_seen_labels,
-                        bees_object=self.bees_object,
-                    )
-                    exporter.export_reaction_tree(
-                        iteration=iteration,
-                        promoted_labels=promoted_labels_combined,
-                    )
                 break
 
             self.logger.info(f"  Model status: {self.model.summary()}")
@@ -520,38 +463,10 @@ class IterativeEnlarger:
                 "core_reactions": s_it["core_reactions"],
                 "edge_reactions": s_it["edge_reactions"],
             })
-            if self.save_reaction_tree_plots:
-                exporter = EnlargerExporter(
-                    model=self.model,
-                    profiles=self._profiles,
-                    output_directory=self.output_directory,
-                    logger=self.logger,
-                    reaction_id_by_sig=self._reaction_id_by_sig,
-                    reaction_first_seen_iter=self._reaction_first_seen_iter,
-                    reaction_core_enter_iter=self._reaction_core_enter_iter,
-                    reaction_obj_by_sig=self._reaction_obj_by_sig,
-                    iteration_summaries=self._iteration_summaries,
-                    save_reaction_tree_plots=self.save_reaction_tree_plots,
-                    save_simulation_plots=self.save_simulation_plots,
-                    plot_max_species=self.plot_max_species,
-                    plot_exclude_enzymes=self.plot_exclude_enzymes,
-                    plot_exclude_cofactors=self.plot_exclude_cofactors,
-                    reaction_tree_layout=self.reaction_tree_layout,
-                    reaction_tree_rankdir=self.reaction_tree_rankdir,
-                    reaction_tree_fontsize=self.reaction_tree_fontsize,
-                    core_seen_labels=self._core_seen_labels,
-                    bees_object=self.bees_object,
-                )
-                exporter.export_reaction_tree(
-                    iteration=iteration,
-                    promoted_labels=promoted_labels_combined,
-                )
-
             if result.converged:
                 break
 
         else:
-            # Loop exhausted without break
             result.convergence_reason = (
                 f"Reached max_iterations ({self.max_iterations})."
             )
@@ -694,8 +609,7 @@ class IterativeEnlarger:
                     self._rxn_nohit_cache.add(key)
                     self._enzyme_nohit_counts[ec] = self._enzyme_nohit_counts.get(ec, 0) + 1
 
-                    # Backoff policy for extremely slow, consistently-unproductive enzymes.
-                    # FabA (EC 4.2.1.60) is observed to be very expensive in fatty-acid projects.
+                    # FabA backoff: skip EC 4.2.1.60 after a slow no-hit (>30 s).
                     if ec == "EC 4.2.1.60" and self._enzyme_nohit_counts[ec] >= 1 and dt > 30.0:
                         self._skip_enzyme_ec_numbers.add(ec)
                         self.logger.info(
@@ -802,26 +716,17 @@ class IterativeEnlarger:
             smi = getattr(sp, "smiles", None)
             if smi:
                 smiles[sp.label] = smi
-        # User-supplied overrides for compounds equilibrator can't resolve
-        # (e.g. ACP-bound intermediates → CoA-equivalent SMILES).
         substitutions = getattr(self.bees_object.settings, "thermo_smiles_substitutions", None) or {}
         smiles.update(substitutions)
         return smiles
 
     def _attach_thermo_to_reactions(self) -> None:
-        # Run the physics rule layer over every reaction currently in the
-        # model, then sync template.reversible from the (rule-decided)
-        # thermo.irreversible flag. The restore-then-apply contract inside
-        # RuleRegistry.apply_all is what makes this safe to call once per
-        # enlarger iteration without compounding multiplicative rules; see
-        # bees.rules.base.RuleRegistry.apply_all.
-        from bees.rules import load_rules, configure_calibrations
+        # RULES.apply_all restores then applies (no compounding). Sync template.reversible after.
+        from bees.rules import load_rules
         rules = load_rules()
-        # Enable exactly the calibrations this run declares (settings.calibrations);
-        # disable the rest. Physics laws are always on. Done every iteration so the
-        # set is deterministic per run and never leaks across runs in one process.
-        configure_calibrations(
-            rules, getattr(self.bees_object.settings, "calibrations", None) or []
+        # Re-apply every iteration so the enabled set never leaks across runs.
+        rules.configure_calibrations(
+            getattr(self.bees_object.settings, "calibrations", None) or []
         )
         all_reactions = list(self.model.core_reactions) + list(self.model.edge_reactions)
         rules.apply_all(all_reactions)
@@ -856,14 +761,7 @@ class IterativeEnlarger:
 
     @staticmethod
     def _sync_template_reversibility(reactions) -> None:
-        """Propagate `thermo.irreversible` onto `template.reversible`.
-
-        Replaces the inline template mutations that used to live in
-        reaction_generator._attach_thermo_eagerly (lines 787-792 and 824-834).
-        Runs after RULES.apply_all so the template sees the final, rule-decided
-        irreversibility state. Reactions with no attached thermo are left as
-        the reaction generator configured them.
-        """
+        """Propagate thermo.irreversible onto template.reversible after rules."""
         from dataclasses import replace as dc_replace
         import copy as _copy
         for rxn in reactions:

@@ -1,7 +1,6 @@
 """BEES physics rules — always-on physical-chemistry corrections.
 
-Rationale: knowledge/functions/PHYSICS_RULES.md
-Opt-in FAS calibrations: bees.rules.calibrations.fas (CALIBRATIONS.md).
+Opt-in FAS calibrations: bees.rules.calibrations.fas.
 """
 
 from __future__ import annotations
@@ -27,14 +26,13 @@ _HYDROPHOBIC_REFERENCE_CHAIN = 2
 _HYDROPHOBIC_TEMPERATURE_K = 298.15
 _R_KJ = 8.314462618e-3
 
-
 def compute_haldane_reverse_kcat(
     kcat_fwd: float,
     keq: float,
     km_substrates: Iterable[float],
     km_products: Iterable[float],
 ) -> Optional[float]:
-    """kcat_rev = kcat_fwd · ∏Km_p / (Keq · ∏Km_s). No ceiling. See PHYSICS_RULES.md."""
+    """kcat_rev = kcat_fwd · ∏Km_p / (Keq · ∏Km_s). No ceiling."""
     if not (
         math.isfinite(keq)
         and keq > 0.0
@@ -59,31 +57,8 @@ def compute_haldane_reverse_kcat(
         return None
     return val
 
-
-def _filter_km_for_haldane(reaction, side: str) -> list[float]:
-    """Haldane Km filter by stoich side; skips always-available cofactors."""
-    kin = getattr(reaction, "kinetics", None)
-    if kin is None:
-        return []
-    km_per = getattr(kin, "km_per_substrate", None) or {}
-    stoich = getattr(reaction, "stoichiometry", None) or {}
-    kept: list[float] = []
-    for lab, km in km_per.items():
-        if km is None or km <= 0 or not math.isfinite(km):
-            continue
-        if lab.lower().strip() in COFACTORS_ALWAYS_AVAILABLE:
-            continue
-        coeff = stoich.get(lab, 0)
-        if side == "substrate" and coeff >= 0:
-            continue
-        if side == "product" and coeff <= 0:
-            continue
-        kept.append(km)
-    return kept
-
-
 def _has_co2_product(reaction) -> bool:
-    """True if CO2 is a product (label or SMILES). See PHYSICS_RULES.md."""
+    """True if CO2 is a product (label or SMILES)."""
     stoich = getattr(reaction, "stoichiometry", None) or {}
     product_labels = getattr(reaction, "product_labels", None) or [
         lab for lab, c in stoich.items() if c > 0
@@ -106,9 +81,8 @@ def _has_co2_product(reaction) -> bool:
                 return True
     return False
 
-
 class DgrIrreversibility(Rule):
-    """Flag irreversible when |ΔG°'| > cutoff or Keq invalid. See PHYSICS_RULES.md."""
+    """Flag irreversible when |ΔG°'| > cutoff or Keq invalid."""
 
     def applies_to(self, reaction) -> bool:
         thermo = getattr(reaction, "thermo", None)
@@ -130,9 +104,8 @@ class DgrIrreversibility(Rule):
             thermo.irreversible = True
             thermo.kcat_rev = None
 
-
 class DecarboxylationIrreversible(Rule):
-    """Flag irreversible when CO2 is a product. See PHYSICS_RULES.md."""
+    """Flag irreversible when CO2 is a product."""
 
     def applies_to(self, reaction) -> bool:
         thermo = getattr(reaction, "thermo", None)
@@ -144,9 +117,8 @@ class DecarboxylationIrreversible(Rule):
         reaction.thermo.irreversible = True
         reaction.thermo.kcat_rev = None
 
-
 class HydrophobicChainLengthKm(Rule):
-    """Scale acyl-substrate Km by chain length. See PHYSICS_RULES.md."""
+    """Scale acyl-substrate Km by chain length."""
 
     def applies_to(self, reaction) -> bool:
         kin = getattr(reaction, "kinetics", None)
@@ -188,9 +160,8 @@ class HydrophobicChainLengthKm(Rule):
                 continue
             km_per[lab] = km * math.exp(dG * (n - n_ref) / rt)
 
-
 class HaldaneReverseKcat(Rule):
-    """Recompute kcat_rev via Haldane (reverse-queried product Kms). See PHYSICS_RULES.md."""
+    """Recompute kcat_rev via Haldane (reverse-queried product Kms)."""
 
     def applies_to(self, reaction) -> bool:
         thermo = getattr(reaction, "thermo", None)
@@ -229,9 +200,8 @@ class HaldaneReverseKcat(Rule):
         else:
             thermo.kcat_rev = kcat_rev
 
-
 class ReverseKcatCeiling(Rule):
-    """Clear absurd kcat_rev (>cap) → irreversible. See PHYSICS_RULES.md."""
+    """Clear absurd kcat_rev (>cap) → irreversible."""
 
     def applies_to(self, reaction) -> bool:
         thermo = getattr(reaction, "thermo", None)
@@ -261,7 +231,6 @@ class ReverseKcatCeiling(Rule):
         )
         thermo.kcat_rev = None
         thermo.irreversible = True
-
 
 _alberty_2003 = Reference(
     authors=("Alberty, R. A.",),

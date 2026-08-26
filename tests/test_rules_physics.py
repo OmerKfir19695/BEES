@@ -35,9 +35,9 @@ from bees.rules.physics_rules import (
 )
 from bees.rules.calibrations.fas import (
     TesALongChainPreference,
+    _TESA_EC,
     _TESA_PREF_N_HALF,
     _TESA_PREF_SHARPNESS,
-    _TESA_THIOESTERASE_ECS,
 )
 
 
@@ -376,7 +376,7 @@ class TestTesALongChainPreference:
     @staticmethod
     def _rule():
         return _rule(TesALongChainPreference, params={
-            "ec_numbers": _TESA_THIOESTERASE_ECS,
+            "ec_numbers": frozenset({_TESA_EC}),
             "n_half": _TESA_PREF_N_HALF,
             "sharpness_k": _TESA_PREF_SHARPNESS,
         })
@@ -606,9 +606,9 @@ class TestRegistryOrderingAndIdempotence:
 # ---------------------------------------------------------------------------
 
 class TestProductionRegistry:
-    def test_load_physics_rules_registers_all(self):
-        from bees.rules import load_physics_rules
-        rules = load_physics_rules()
+    def test_load_rules_registers_all(self):
+        from bees.rules import load_rules
+        rules = load_rules()
         names = [r.name for r in rules]
         assert "dgr_irreversibility" in names
         assert "decarboxylation_irreversible" in names
@@ -617,8 +617,8 @@ class TestProductionRegistry:
         assert "reverse_kcat_ceiling" in names
 
     def test_rule_order_flags_and_km_before_haldane_before_ceiling(self):
-        from bees.rules import load_physics_rules
-        rules = list(load_physics_rules())
+        from bees.rules import load_rules
+        rules = list(load_rules())
         names = [r.name for r in rules]
         i_dgr = names.index("dgr_irreversibility")
         i_decarb = names.index("decarboxylation_irreversible")
