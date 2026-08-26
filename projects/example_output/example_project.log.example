@@ -47,7 +47,6 @@ settings:
   verbose: 20
   save_simulation_profiles: False
   save_simulation_plots: False
-  save_reaction_tree_plots: False
   save_ode_equations: True
   output_directory: /path/to/BEES/projects/example_output/output
 verbose: info

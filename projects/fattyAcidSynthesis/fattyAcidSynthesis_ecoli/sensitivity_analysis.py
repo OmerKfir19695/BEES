@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
 r"""
-local (one-factor-at-a-time) sensitivity analysis for the E. coli
-FAS-II model.
-
-Provenance: knowledge/summaries/scripts/sensitivity_analysis.md
+Local (one-factor-at-a-time) sensitivity analysis for the E. coli FAS-II model.
 
 Run (repo root, bees_env):
     python projects/fattyAcidSynthesis/fattyAcidSynthesis_ecoli/sensitivity_analysis.py --tornado-only --bare --jobs 16
-    python projects/fattyAcidSynthesis/fattyAcidSynthesis_ecoli/sensitivity_analysis.py --feedback-only   # skip tornado
-    python projects/fattyAcidSynthesis/fattyAcidSynthesis_ecoli/sensitivity_analysis.py --bare           # no titles (Ki legends stay)
-    python projects/fattyAcidSynthesis/fattyAcidSynthesis_ecoli/sensitivity_analysis.py --end-time 3000 # 50 min horizon
-    python projects/fattyAcidSynthesis/fattyAcidSynthesis_ecoli/sensitivity_analysis.py --jobs 16       # parallel tornado
+    python projects/fattyAcidSynthesis/fattyAcidSynthesis_ecoli/sensitivity_analysis.py --feedback-only
+    python projects/fattyAcidSynthesis/fattyAcidSynthesis_ecoli/sensitivity_analysis.py --bare
+    python projects/fattyAcidSynthesis/fattyAcidSynthesis_ecoli/sensitivity_analysis.py --end-time 3000
+    python projects/fattyAcidSynthesis/fattyAcidSynthesis_ecoli/sensitivity_analysis.py --jobs 16
 
 Feedback Ki panels are per-enzyme: FabH and FabI are swept separately; the
-other enzyme's Ki stays at the production lock. Hill-n panel is retired.
+other enzyme's Ki stays at the production lock.
 """
 
 import argparse
@@ -25,9 +22,7 @@ import copy
 import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-# --- Load .env.bees BEFORE importing any bees.* module (class-level env vars
-#     such as CATPRED_PYTHON are resolved at class-definition time). Mirrors
-#     BEES.py exactly. ---------------------------------------------------------
+# Load .env.bees before any bees.* import (class-level env vars resolve at definition time).
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 _ENV_BEES = os.path.join(_REPO_ROOT, ".env.bees")
 if os.path.isfile(_ENV_BEES):
@@ -59,9 +54,6 @@ from bees.reaction_generator import ReactionGenerator
 from bees.enlarger import IterativeEnlarger
 from bees.simulator import ODESimulator
 
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
 _PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 INPUT_YML = os.path.join(_PROJECT_DIR, "input.yml")
 _OUT_DIR = os.path.join(_PROJECT_DIR, "output", "sensitivity")
@@ -69,45 +61,58 @@ os.makedirs(_OUT_DIR, exist_ok=True)
 OUT_STEM = os.path.join(_OUT_DIR, "sensitivity_analysis")
 OUT_KI_FABH_STEM = os.path.join(_OUT_DIR, "sensitivity_ki_fabh_timecourse")
 OUT_KI_FABI_STEM = os.path.join(_OUT_DIR, "sensitivity_ki_fabi_timecourse")
-# Legacy aliases (FabH panel also written here for older deliverable paths).
 OUT_KI_STEM = OUT_KI_FABH_STEM
-OUT_HILL_STEM = os.path.join(_OUT_DIR, "sensitivity_hill_timecourse")
 
-KCAT_LN_STEP = 0.05          # h: perturb kcat/Km/Ki by exp(+/- h) in ln-space
+KCAT_LN_STEP = 0.05          # perturb kcat/Km/Ki by exp(+/- h) in ln-space
 KM_LN_STEP = KCAT_LN_STEP
 KI_LN_STEP = KCAT_LN_STEP
 DG_STEP_KCAL = 0.5           # ΔG°′ perturbation, kcal/mol
 KCAL_PER_KJ = 1.0 / 4.184
-R_KJ = 8.314462618e-3        # gas constant, kJ / (mol K)
+R_KJ = 8.314462618e-3        # kJ / (mol K)
 DYNAMIC_FRAC = 0.5           # t* = time baseline PE reaches this fraction of final
-TOP_N = 10                   # bars to show per tornado panel
+TOP_N = 10
 
-# Publication mode: drop figure/panel titles (caption carries them). Ki
-# legends stay on (2-column boxed style). Set by --bare; numbers still go to stdout.
 BARE = False
-
-# Horizon override (--end-time). Applied to settings BEFORE the enlarger runs,
-# so it changes the network that gets built, not just the plotted window.
 END_TIME_OVERRIDE = None
-
-# Tornado OFAT parallelism (--jobs). Ki panels stay serial. Default: all but one core.
 N_JOBS = max(1, (os.cpu_count() or 2) - 1)
 
-# Fork-worker globals (set in parent before ProcessPoolExecutor; children inherit).
+# Fork workers inherit these from the parent (set before ProcessPoolExecutor).
 _W_MODEL = None
 _W_SIM_KW = None
 _W_TEMPERATURE = None
 
-# Corrected Yu 2011 Fig S2A digitization (t=9/t=12 plateau) — same points as
-# plot_vs_yu_s2a_ruppe_s2b.py. Used for Ki re-fit RMSE at fixed hill=2.
-S2A_EXP_T_MIN = np.array([1.5, 3.0, 5.0, 7.0, 9.0, 12.0])
-S2A_EXP_UM = np.array([6.5, 17.0, 28.5, 30.0, 35.5, 35.5])
-# Ki grid at hill=2 (µM): coarse then fine around the coarse minimum.
-KI_REFIT_COARSE_UM = list(range(2, 17))          # 2, 3, ..., 16
-KI_REFIT_FINE_HALFWIDTH_UM = 2.0
-KI_REFIT_FINE_STEP_UM = 0.25
 
-# Free-fatty-acid recognition (copied from exporter.py:_fa_carbons) ----------
+def _load_s2a_experiment():
+    """Ruppe 2018 SI Experimental_Dataset.csv (S2A; min, µM palmitic eq)."""
+    candidates = (
+        os.path.join(
+            _REPO_ROOT,
+            "knowledge",
+            "references",
+            "ecoli_fas2_project",
+            "ruppe_2018_pnas",
+            "Model and Solver",
+            "Experimental_Dataset.csv",
+        ),
+        os.path.join(
+            _REPO_ROOT,
+            "docs",
+            "deliverables",
+            "tIme_course_simulation",
+            "Experimental_Dataset.csv",
+        ),
+    )
+    path = next((p for p in candidates if os.path.isfile(p)), None)
+    if path is None:
+        raise FileNotFoundError(
+            "Ruppe S2A Experimental_Dataset.csv not found in knowledge/ or docs/deliverables/"
+        )
+    data = np.genfromtxt(path, delimiter=",", skip_header=1)
+    return data[:, 0], data[:, 1]
+
+
+S2A_EXP_T_MIN, S2A_EXP_UM = _load_s2a_experiment()
+
 _FA_STEMS = [
     ("icosen", 20), ("icosan", 20), ("octadecen", 18), ("octadecan", 18),
     ("hexadecen", 16), ("hexadecan", 16), ("tetradecen", 14), ("tetradecan", 14),
@@ -127,12 +132,8 @@ def _fa_carbons(label):
     return None
 
 
-# ---------------------------------------------------------------------------
-# Build the final network once
-# ---------------------------------------------------------------------------
 def build_model():
-    """Run the BEES pipeline up to the final enlarged model; return (enlarger,
-    model, temperature_K). CatPred results come from the shared on-disk cache."""
+    """Run the BEES pipeline up to the final enlarged model; return (enlarger, model, T_K)."""
     input_data = common.read_yaml_file(INPUT_YML)
     input_data.setdefault("settings", {})
     if END_TIME_OVERRIDE is not None:
@@ -167,15 +168,8 @@ def build_model():
     return enlarger, result.model, temperature
 
 
-# ---------------------------------------------------------------------------
-# Simulation + target extraction
-# ---------------------------------------------------------------------------
 def _simulate(enlarger, model, end_time=None):
-    """Fresh ODESimulator each call so baked-in RHS (incl. feedback Ki) is rebuilt.
-
-    Tornado sweeps only need PE at fixed t*, so pass end_time slightly past t*
-    to avoid integrating the full 3000 s horizon ~200–300 times.
-    """
+    """Fresh ODESimulator each call so the baked-in RHS (including feedback Ki) is rebuilt."""
     model.reset_concentrations_to_initial()
     sim = ODESimulator(model, logger=None)
     t_end = float(enlarger.end_time if end_time is None else end_time)
@@ -189,12 +183,7 @@ def _simulate(enlarger, model, end_time=None):
 
 
 def _try_simulate(enlarger, model, end_time=None):
-    """As _simulate, but returns None when the stiff solver diverges.
-
-    A perturbed parameter can push the BDF Jacobian to inf/NaN, which raises out
-    of solve_ivp. That is a property of the perturbed point, not a script bug, so
-    the sweep records the parameter as unscored instead of aborting the whole run.
-    """
+    """As _simulate, but return None if the stiff solver diverges."""
     try:
         return _simulate(enlarger, model, end_time=end_time)
     except (ValueError, FloatingPointError, np.linalg.LinAlgError) as exc:
@@ -209,7 +198,6 @@ def _sweep_end_time(enlarger, t_star):
 
 
 def _sim_kwargs(enlarger):
-    """Scalar ODE settings needed by workers (no enlarger object in the pool)."""
     return {
         "time_step": enlarger.time_step,
         "method": enlarger.ode_method,
@@ -262,11 +250,7 @@ def _finite_diff(sim_p, sim_m, t_eval, denom):
     return _fd_pe(cp, cm, denom)
 
 
-# ---------------------------------------------------------------------------
-# Parallel tornado workers (fork: inherit _W_* from parent)
-# ---------------------------------------------------------------------------
 def _worker_kcat(job):
-    """job = (rxn_idx, label, h, t_star, t_end) -> (rxn_idx, label, S)."""
     rxn_idx, label, h, t_star, t_end = job
     model = copy.deepcopy(_W_MODEL)
     kin = model.core_reactions[rxn_idx].kinetics
@@ -279,7 +263,6 @@ def _worker_kcat(job):
 
 
 def _worker_km(job):
-    """job = (rxn_idx, label, h, t_star, t_end) -> (rxn_idx, label, S)."""
     rxn_idx, label, h, t_star, t_end = job
     model = copy.deepcopy(_W_MODEL)
     kin = model.core_reactions[rxn_idx].kinetics
@@ -306,7 +289,6 @@ def _worker_km(job):
 
 
 def _worker_dg(job):
-    """job = (rxn_idx, label, dg_step_kj, t_star, t_end) -> (rxn_idx, label, S)."""
     rxn_idx, label, dg_step_kj, t_star, t_end = job
     model = copy.deepcopy(_W_MODEL)
     thermo = model.core_reactions[rxn_idx].thermo
@@ -325,10 +307,7 @@ def _worker_dg(job):
 
 
 def _run_tornado_jobs(tag, jobs, worker, model, sim_kw, temperature=None, n_jobs=None):
-    """Run OFAT jobs; parallel via fork when n_jobs > 1.
-
-    Returns list of (label, S) in job submission order.
-    """
+    """Run OFAT jobs; parallel via fork when n_jobs > 1. Returns (label, S) in submission order."""
     n_jobs = N_JOBS if n_jobs is None else int(n_jobs)
     n = len(jobs)
     if n == 0:
@@ -347,7 +326,6 @@ def _run_tornado_jobs(tag, jobs, worker, model, sim_kw, temperature=None, n_jobs
             results[i] = (label, s)
         return results
 
-    # fork: children inherit _W_* without pickling the (large) model through the pipe.
     ctx = mp.get_context("fork")
     print(f"  {tag}: {n} parameters x 2 sims, {n_jobs} workers", flush=True)
     with ProcessPoolExecutor(max_workers=n_jobs, mp_context=ctx) as pool:
@@ -362,18 +340,13 @@ def _run_tornado_jobs(tag, jobs, worker, model, sim_kw, temperature=None, n_jobs
     return results
 
 
-# ---------------------------------------------------------------------------
-# Sensitivity loops (score at fixed baseline t*)
-# ---------------------------------------------------------------------------
 def _reaction_equation(rxn):
-    """Stoichiometric equation: reactants -> products."""
     left = " + ".join(rxn.reactant_labels) if rxn.reactant_labels else "?"
     right = " + ".join(rxn.product_labels) if rxn.product_labels else "?"
     return f"{left} -> {right}"
 
 
 def _reaction_label(rxn, seen):
-    """Unique bar label: enzyme + full reaction equation."""
     base = f"{rxn.enzyme_label}: {_reaction_equation(rxn)}"
     n = seen.get(base, 0)
     seen[base] = n + 1
@@ -433,11 +406,7 @@ def dg_sensitivity(enlarger, model, temperature, t_star, n_jobs=None):
     )
 
 
-# ---------------------------------------------------------------------------
-# Ki time-course figure
-# ---------------------------------------------------------------------------
 def _feedback_reactions(model, enzyme=None):
-    """Core reactions with feedback_inhibitors. Optionally filter by enzyme label."""
     key = None if enzyme is None else str(enzyme).lower().strip()
     out = []
     for rxn in model.core_reactions:
@@ -462,7 +431,6 @@ def _restore_feedback(rxns, snap):
 
 
 def _scale_feedback_ki(rxns, factor):
-    """Scale every (Ki, hill) tuple's Ki; hill unchanged. Dict shape: {inh: (Ki, hill)}."""
     for rxn in rxns:
         fb = rxn.feedback_inhibitors
         if not isinstance(fb, dict):
@@ -473,7 +441,6 @@ def _scale_feedback_ki(rxns, factor):
 
 
 def _baseline_ki_uM(rxns):
-    """Report the (single) baseline Ki in uM for legend labeling."""
     for rxn in rxns:
         fb = rxn.feedback_inhibitors
         if isinstance(fb, dict) and fb:
@@ -482,75 +449,7 @@ def _baseline_ki_uM(rxns):
     return float("nan")
 
 
-def _set_feedback_ki_hill(rxns, ki_mM=None, hill=None):
-    """Set absolute Ki (mM) and/or hill on every feedback entry; leave others unchanged."""
-    for rxn in rxns:
-        fb = rxn.feedback_inhibitors
-        if not isinstance(fb, dict):
-            continue
-        rxn.feedback_inhibitors = {
-            lab: (
-                float(ki_mM) if ki_mM is not None else float(ki),
-                float(hill) if hill is not None else float(h),
-            )
-            for lab, (ki, h) in fb.items()
-        }
-
-
-def _s2a_rmse(sim):
-    """RMSE of PE(t) vs corrected Yu S2A 6-point curve (µM palmitate-eq)."""
-    pe = _pe_series(sim)
-    t_min = sim.t / 60.0
-    pred = np.interp(S2A_EXP_T_MIN, t_min, pe)
-    return float(np.sqrt(np.mean((pred - S2A_EXP_UM) ** 2)))
-
-
-def _refit_ki_at_hill(enlarger, model, fb_rxns, snap, hill=2.0):
-    """Coarse-then-fine Ki grid at fixed hill vs Yu S2A. Returns (Ki*_uM, RMSE*, table)."""
-    print(f"\n=== Ki re-fit at hill={hill:g} vs Yu S2A ===", flush=True)
-    results = []  # (ki_uM, rmse)
-
-    def _eval(ki_uM):
-        _restore_feedback(fb_rxns, snap)
-        _set_feedback_ki_hill(fb_rxns, ki_mM=ki_uM / 1000.0, hill=hill)
-        sim = _simulate(enlarger, model)
-        rmse = _s2a_rmse(sim)
-        results.append((ki_uM, rmse))
-        print(f"  Ki={ki_uM:6.2f} µM  RMSE={rmse:6.3f} µM", flush=True)
-        return rmse
-
-    print("  coarse grid...", flush=True)
-    coarse_results = []
-    for ki_uM in KI_REFIT_COARSE_UM:
-        rmse = _eval(float(ki_uM))
-        coarse_results.append((float(ki_uM), rmse))
-    ki_c, rmse_c = min(coarse_results, key=lambda kr: kr[1])
-    print(
-        f"  coarse minimum: Ki={ki_c:.2f} µM (RMSE={rmse_c:.3f})",
-        flush=True,
-    )
-
-    print("  fine grid...", flush=True)
-    lo = max(0.25, ki_c - KI_REFIT_FINE_HALFWIDTH_UM)
-    hi = ki_c + KI_REFIT_FINE_HALFWIDTH_UM
-    fine_vals = np.arange(lo, hi + 0.5 * KI_REFIT_FINE_STEP_UM, KI_REFIT_FINE_STEP_UM)
-    seen = {round(k, 4) for k, _ in results}
-    for ki_uM in fine_vals:
-        if round(float(ki_uM), 4) in seen:
-            continue
-        _eval(float(ki_uM))
-
-    ki_star, rmse_star = min(results, key=lambda kr: kr[1])
-    print(
-        f"  winner: Ki*={ki_star:.2f} µM  RMSE={rmse_star:.3f} µM (hill={hill:g})",
-        flush=True,
-    )
-    _restore_feedback(fb_rxns, snap)
-    return ki_star, rmse_star, results
-
-
 def _style_legend(ax, fontsize=9):
-    """Two-column boxed legend (paper style: frame, ncol=2, no fancybox)."""
     ax.legend(
         loc="best",
         ncol=2,
@@ -566,7 +465,6 @@ def _style_legend(ax, fontsize=9):
 
 
 def _panel_letter(fig, letter):
-    """Bold panel tag at true figure top-left."""
     fig.text(
         0.01,
         0.99,
@@ -579,11 +477,7 @@ def _panel_letter(fig, letter):
 
 
 def ki_timecourse(enlarger, model, t_star, enzyme="FabH", out_stem=None, panel_letter="A"):
-    """PE(t) for baseline / +/- ln-step Ki / enzyme-feedback-off; print S_Ki at t*.
-
-    Only reactions for ``enzyme`` are scaled or cleared; the other enzyme's Ki
-    stays at the production lock.
-    """
+    """PE(t) for baseline Ki, ln-step Ki band (×e^{±h}), and enzyme-feedback-off."""
     if out_stem is None:
         out_stem = OUT_KI_FABH_STEM if enzyme.lower() == "fabh" else OUT_KI_FABI_STEM
     fb_rxns = _feedback_reactions(model, enzyme=enzyme)
@@ -597,23 +491,19 @@ def ki_timecourse(enlarger, model, t_star, enzyme="FabH", out_stem=None, panel_l
     snap = _snapshot_feedback(fb_rxns)
     ki_uM = _baseline_ki_uM(fb_rxns)
 
-    # Baseline
     sim_base = _simulate(enlarger, model)
     pe_base = _pe_series(sim_base)
 
-    # Ki * exp(+h) — this enzyme only
     _scale_feedback_ki(fb_rxns, math.exp(KI_LN_STEP))
     sim_p = _simulate(enlarger, model)
     pe_p = _pe_series(sim_p)
     _restore_feedback(fb_rxns, snap)
 
-    # Ki * exp(-h)
     _scale_feedback_ki(fb_rxns, math.exp(-KI_LN_STEP))
     sim_m = _simulate(enlarger, model)
     pe_m = _pe_series(sim_m)
     _restore_feedback(fb_rxns, snap)
 
-    # This enzyme's feedback off (other enzyme unchanged)
     for rxn in fb_rxns:
         rxn.feedback_inhibitors = None
     sim_off = _simulate(enlarger, model)
@@ -624,25 +514,35 @@ def ki_timecourse(enlarger, model, t_star, enzyme="FabH", out_stem=None, panel_l
     print(
         f"\n=== {enzyme} feedback Ki: S_Ki = dln(PE(t*))/dln(Ki) = {s_ki:.4f} ==="
     )
+    ki_hi = ki_uM * math.exp(KI_LN_STEP)
+    ki_lo = ki_uM * math.exp(-KI_LN_STEP)
+    rel_pct = 100.0 * (math.exp(KI_LN_STEP) - 1.0)
     print(f"  baseline Ki = {ki_uM:.3f} uM; t* = {t_star:.1f} s (fixed)")
+    print(
+        f"  ln-step h={KI_LN_STEP}: Ki scaled to {ki_lo:.3f} and {ki_hi:.3f} uM "
+        f"(×e^{{±h}} ≈ ±{rel_pct:.1f}% relative, not ±{KI_LN_STEP} uM)"
+    )
     print(f"  other enzyme Ki held at production lock", flush=True)
 
     fig, ax = plt.subplots(figsize=(8, 5))
     t_min = sim_base.t / 60.0
+    pe_p_i = np.interp(sim_base.t, sim_p.t, pe_p)
+    pe_m_i = np.interp(sim_base.t, sim_m.t, pe_m)
+    rel_pct = 100.0 * (math.exp(KI_LN_STEP) - 1.0)
+    ax.fill_between(
+        t_min,
+        np.minimum(pe_p_i, pe_m_i),
+        np.maximum(pe_p_i, pe_m_i),
+        color="#2980b9",
+        alpha=0.35,
+        linewidth=0,
+        zorder=1,
+        label=rf"Ki × $e^{{\pm {KI_LN_STEP}}}$ ($\approx \pm${rel_pct:.1f}%)",
+    )
     ax.plot(
         t_min, pe_base,
-        color="#2c3e50", linewidth=2.0,
+        color="#2c3e50", linewidth=2.0, zorder=3,
         label=f"Ki = {ki_uM:.1f} µM",
-    )
-    ax.plot(
-        sim_p.t / 60.0, pe_p,
-        color="#c0392b", linewidth=1.5, linestyle="--",
-        label=rf"Ki × $e^{{+{KI_LN_STEP}}}$",
-    )
-    ax.plot(
-        sim_m.t / 60.0, pe_m,
-        color="#2980b9", linewidth=1.5, linestyle="--",
-        label=rf"Ki × $e^{{-{KI_LN_STEP}}}$",
     )
     ax.plot(
         sim_off.t / 60.0, pe_off,
@@ -675,126 +575,6 @@ def ki_timecourse(enlarger, model, t_star, enzyme="FabH", out_stem=None, panel_l
     return s_ki
 
 
-def hill_timecourse(enlarger, model):
-    """DEPRECATED: Hill-n panel retired in favor of per-enzyme FabI Ki SA.
-
-    Kept for optional re-runs; not called from main().
-    """
-    fb_rxns = _feedback_reactions(model, enzyme="FabH")
-    if not fb_rxns:
-        print("No reactions with feedback_inhibitors; skipping Hill time course.")
-        return None
-
-    snap = _snapshot_feedback(fb_rxns)
-    ki0_uM = _baseline_ki_uM(fb_rxns)
-    ki0_mM = ki0_uM / 1000.0
-
-    # --- scenarios at held Ki ---
-    def _sim_at(hill, ki_mM):
-        _restore_feedback(fb_rxns, snap)
-        _set_feedback_ki_hill(fb_rxns, ki_mM=ki_mM, hill=hill)
-        return _simulate(enlarger, model)
-
-    print("Hill scenarios (Ki held at baseline)...", flush=True)
-    sim_n1 = _sim_at(1.0, ki0_mM)
-    pe_n1 = _pe_series(sim_n1)
-    rmse_n1 = _s2a_rmse(sim_n1)
-
-    sim_n2 = _sim_at(2.0, ki0_mM)
-    pe_n2 = _pe_series(sim_n2)
-    rmse_n2_held = _s2a_rmse(sim_n2)
-
-    sim_n05 = _sim_at(0.5, ki0_mM)
-    pe_n05 = _pe_series(sim_n05)
-    rmse_n05 = _s2a_rmse(sim_n05)
-
-    _restore_feedback(fb_rxns, snap)
-    for rxn in fb_rxns:
-        rxn.feedback_inhibitors = None
-    sim_off = _simulate(enlarger, model)
-    pe_off = _pe_series(sim_off)
-    _restore_feedback(fb_rxns, snap)
-
-    # --- Ki re-fit at n=2 ---
-    ki_star, rmse_star, _table = _refit_ki_at_hill(
-        enlarger, model, fb_rxns, snap, hill=2.0
-    )
-    _restore_feedback(fb_rxns, snap)
-    _set_feedback_ki_hill(fb_rxns, ki_mM=ki_star / 1000.0, hill=2.0)
-    sim_refit = _simulate(enlarger, model)
-    pe_refit = _pe_series(sim_refit)
-    _restore_feedback(fb_rxns, snap)
-
-    print(
-        f"\n=== Hill robustness RMSE vs Yu S2A ===\n"
-        f"  n=1, Ki={ki0_uM:.1f} µM (baseline):  RMSE={rmse_n1:.3f} µM\n"
-        f"  n=2, Ki={ki0_uM:.1f} µM (held):      RMSE={rmse_n2_held:.3f} µM\n"
-        f"  n=0.5, Ki={ki0_uM:.1f} µM (held):    RMSE={rmse_n05:.3f} µM\n"
-        f"  n=2, Ki*={ki_star:.2f} µM (re-fit):   RMSE={rmse_star:.3f} µM",
-        flush=True,
-    )
-
-    fig, ax = plt.subplots(figsize=(9, 5.5))
-    ax.plot(
-        sim_n1.t / 60.0, pe_n1,
-        color="#2c3e50", linewidth=2.0,
-        label=f"n=1, Ki={ki0_uM:.1f} µM",
-    )
-    ax.plot(
-        sim_n2.t / 60.0, pe_n2,
-        color="#c0392b", linewidth=1.5, linestyle="--",
-        label=f"n=2, Ki={ki0_uM:.1f} µM",
-    )
-    ax.plot(
-        sim_n05.t / 60.0, pe_n05,
-        color="#2980b9", linewidth=1.5, linestyle="--",
-        label=f"n=0.5, Ki={ki0_uM:.1f} µM",
-    )
-    ax.plot(
-        sim_refit.t / 60.0, pe_refit,
-        color="#27ae60", linewidth=2.0,
-        label=f"n=2, Ki={ki_star:.2f} µM",
-    )
-    ax.plot(
-        sim_off.t / 60.0, pe_off,
-        color="#7f8c8d", linewidth=1.8, linestyle=":",
-        label="no FabH feedback",
-    )
-    ax.scatter(
-        S2A_EXP_T_MIN, S2A_EXP_UM,
-        color="black", s=28, zorder=5,
-        label="Experimental",
-    )
-    ax.set_xlabel("time (min)")
-    ax.set_ylabel("PE (µM)")
-    if not BARE:
-        ax.set_title(
-            "FabH feedback Hill coefficient: PE(t) cooperativity robustness\n"
-            f"RMSE: baseline={rmse_n1:.2f}, n=2 held={rmse_n2_held:.2f}, "
-            f"n=2 re-fit={rmse_star:.2f} µM  "
-            "(dotted = structural comparator)"
-        )
-    _style_legend(ax, fontsize=8)
-    ax.grid(True, linestyle=":", alpha=0.5)
-    fig.tight_layout()
-    _panel_letter(fig, "B")
-    for ext in ("png", "pdf"):
-        path = f"{OUT_HILL_STEM}.{ext}"
-        fig.savefig(path, dpi=150, bbox_inches="tight")
-        print(f"wrote {path}")
-    plt.close(fig)
-    return {
-        "rmse_n1": rmse_n1,
-        "rmse_n2_held": rmse_n2_held,
-        "rmse_n05": rmse_n05,
-        "ki_star": ki_star,
-        "rmse_star": rmse_star,
-    }
-
-
-# ---------------------------------------------------------------------------
-# Plotting — Figure 1 tornado (one figure per parameter class)
-# ---------------------------------------------------------------------------
 def _tornado(ax, rows, xlabel, title, panel_letter=None):
     import textwrap
 
@@ -831,7 +611,6 @@ def _save_tornado_csv(stem, rows):
 
 
 def _load_tornado_csv(stem):
-    """Load (label, S) rows from a previously written tornado CSV."""
     import csv
 
     path = f"{stem}.csv"
@@ -843,17 +622,13 @@ def _load_tornado_csv(stem):
 
 
 def make_figure(kcat_rows, km_rows, dg_rows, t_star, write_csv=True):
-    """Write three separate tornado figures (readable fonts + full equations).
-
-    Panel letters (paper order): (A) ΔG°′, (B) k_cat, (C) K_m.
-    """
+    """Write three standalone tornado figures (ΔG°′, k_cat, K_m); no panel letters."""
     panels = [
         (
             dg_rows,
             r"$d\ln(\mathrm{PE})\,/\,d(\Delta G^{\circ\prime})$  [(kcal/mol)$^{-1}$]",
             f"Thermodynamic sensitivity at fixed t*={t_star:.0f}s",
             f"{OUT_STEM}_dgr",
-            "A",
         ),
         (
             kcat_rows,
@@ -861,32 +636,20 @@ def make_figure(kcat_rows, km_rows, dg_rows, t_star, write_csv=True):
             f"kcat sensitivity at fixed t*={t_star:.0f}s "
             f"({int(DYNAMIC_FRAC * 100)}% of baseline final)",
             f"{OUT_STEM}_kcat",
-            "B",
         ),
         (
             km_rows,
             r"$d\ln(\mathrm{PE})\,/\,d\ln(K_m)$",
             f"Km sensitivity at fixed t*={t_star:.0f}s",
             f"{OUT_STEM}_km",
-            "C",
         ),
     ]
-    for rows, xlabel, title, stem, letter in panels:
+    for rows, xlabel, title, stem in panels:
         if write_csv:
             _save_tornado_csv(stem, rows)
         fig, ax = plt.subplots(figsize=(12, 7))
         _tornado(ax, rows, xlabel, title)
         fig.subplots_adjust(left=0.48, right=0.98, top=0.92, bottom=0.12)
-        # True figure top-left (outside the crowded y-tick region).
-        fig.text(
-            0.01,
-            0.99,
-            f"({letter})",
-            fontsize=16,
-            fontweight="bold",
-            va="top",
-            ha="left",
-        )
         for ext in ("png", "pdf"):
             path = f"{stem}.{ext}"
             fig.savefig(path, dpi=200, bbox_inches="tight")
@@ -899,7 +662,6 @@ def replot_tornado_from_csv(t_star=None):
     kcat_rows = _load_tornado_csv(f"{OUT_STEM}_kcat")
     km_rows = _load_tornado_csv(f"{OUT_STEM}_km")
     dg_rows = _load_tornado_csv(f"{OUT_STEM}_dgr")
-    # t* only used in non-bare titles; bare mode ignores it.
     make_figure(kcat_rows, km_rows, dg_rows, t_star=t_star or 0.0, write_csv=False)
 
 
@@ -910,19 +672,17 @@ def _print_table(name, rows):
         print(f"{lab[:47]:<48}{s:>12.4f}")
 
 
-# ---------------------------------------------------------------------------
 def main(feedback_only=False, tornado_only=False):
     print("Building final FAS-II network (CatPred cached)...", flush=True)
     enlarger, model, temperature = build_model()
 
     print("Baseline full-horizon PE trajectory...", flush=True)
-    base = _simulate(enlarger, model)  # full end_time — need PE_final for t*
+    base = _simulate(enlarger, model)
     pe = _pe_series(base)
     pe_final = float(pe[-1])
     t_final = float(base.t[-1])
     target = DYNAMIC_FRAC * pe_final
     reach = np.where(pe >= target)[0]
-    # Fixed baseline clock time — held for all subsequent perturbed evals.
     t_star = float(base.t[reach[0]]) if len(reach) else t_final
     t_sweep = _sweep_end_time(enlarger, t_star)
     print(

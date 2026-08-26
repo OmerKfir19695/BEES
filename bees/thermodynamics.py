@@ -1,10 +1,4 @@
-"""
-Wraps equilibrator-api to compute ΔG°' for each reaction at the model's pH / ionic strength /
-pMg / temperature, then derives kcat_rev via the Haldane relationship.
-
-Compound resolution: SMILES → InChI (RDKit) → cc.get_compound_by_inchi() → InChIKey prefix
-fallback → skip (source="fallback"). Set BEES_DISABLE_THERMO=1 to bypass equilibrator entirely.
-"""
+"""ΔG°′ / Keq via equilibrator-api; reverse kcat via Haldane."""
 
 from __future__ import annotations
 
@@ -20,20 +14,12 @@ from typing import Dict, Iterable, Optional, Tuple
 
 from bees.common import canonical_smiles, smiles_to_inchi, smiles_to_inchikey,R
 
-# ---------------------------------------------------------------------------
-# CompoundSubstitutor —  SMILES substitution for unknown compounds
-# ---------------------------------------------------------------------------
-
 class CompoundSubstitutor:
-    """Use when equilibrator-api cannot resolve a compound.
-    Subclass and override `substitute(label, smiles)` to implement a strategy.
-    Return the replacement SMILES string, or None to pass through unchanged.
-    """
+    """Replace unresolved SMILES before equilibrator lookup. None = pass-through."""
 
     def substitute(self, label: str, smiles: Optional[str]) -> Optional[str]:
-        """Return a replacement SMILES for this label, or None to leave it as-is."""
+        """Return a replacement SMILES, or None to leave it unchanged."""
         return None
-
 
 _DEFAULT_CACHE_DIR = Path(os.environ.get(
     "BEES_THERMO_CACHE",
@@ -42,24 +28,13 @@ _DEFAULT_CACHE_DIR = Path(os.environ.get(
 
 _DGR_IRREVERSIBLE_KJMOL = 30.0  # |ΔG°'| above this ⇒ treat as irreversible
 _SIGMA_WARN_KJMOL = 10.0        # σ above this ⇒ Keq uncertain by >50×
-# Above ~10^4 s⁻¹ kcat_rev is faster than any known enzyme; a value beyond this
-# almost always indicates Haldane inputs inconsistent with the rate-law form
-# (e.g. cofactor Km leaking into ΠKm_p, or ΔG°' sign/stoichiometry mismatch).
-# Returning None makes the reaction effectively irreversible — safer than
-# clamping silently, since a clamped value still violates Haldane equality.
+# Above KCAT_REV_MAX, return None (irreversible) rather than clamp — a clamp still violates Haldane equality.
 KCAT_REV_MAX = 1e4
 
 logger = logging.getLogger("BEES")
 
-
-# ---------------------------------------------------------------------------
-# Public helpers 
-# ---------------------------------------------------------------------------
-
 def _is_disabled() -> bool:
     return os.environ.get("BEES_DISABLE_THERMO", "").strip() not in ("", "0", "false", "False")
-
-
 
 def haldane_kcat_rev(
     kcat_fwd: float,
@@ -67,11 +42,7 @@ def haldane_kcat_rev(
     km_substrates: Iterable[float],
     km_products: Iterable[float],
 ) -> Optional[float]:
-    """Multi-substrate Haldane: kcat_rev = kcat_fwd · ∏ Km_p / (Keq · ∏ Km_s).
-
-    Returns None if Keq is non-finite/zero, kcat_fwd is invalid, or any
-    Km value is missing/non-positive. Caller should treat None as irreversible.
-    """
+    """kcat_rev = kcat_fwd · ∏Km_p / (Keq · ∏Km_s). None = irreversible."""
     if not (math.isfinite(keq) and keq > 0.0 and math.isfinite(kcat_fwd) and kcat_fwd > 0.0):
         return None
     prod_p = 1.0
@@ -98,30 +69,15 @@ def haldane_kcat_rev(
         return None
     return val
 
-
-# ---------------------------------------------------------------------------
-# ThermoData dataclass
-# ---------------------------------------------------------------------------
-
 @dataclass
 class ThermoData:
-    """Per-reaction thermodynamic and reverse-kinetic parameters.
-
-    Attached as `reaction.thermo` — env-dependent, runtime-only.
-    Not stored on KineticData (the persisted DB-row contract).
-
-    source values:
-      "equilibrator" — successfully computed from CC
-      "fallback"     — equilibrator unavailable or compound not found
-      "disabled"     — BEES_DISABLE_THERMO=1
-    """
+    """Per-reaction ΔG°′ / Keq / kcat_rev. Attached as reaction.thermo (runtime-only)."""
     dgr_prime_kJmol: float
     sigma_kJmol: float
     keq: float
     kcat_rev: Optional[float]
     irreversible: bool
     source: str
-
 
 def _disabled_thermo() -> ThermoData:
     return ThermoData(
@@ -132,7 +88,6 @@ def _disabled_thermo() -> ThermoData:
         irreversible=True,
         source="disabled",
     )
-
 
 def _fallback_thermo(reason: str) -> ThermoData:
     logger.info("Thermo fallback: %s", reason)
@@ -145,17 +100,8 @@ def _fallback_thermo(reason: str) -> ThermoData:
         source="fallback",
     )
 
-
-# ---------------------------------------------------------------------------
-# Disk cache
-# ---------------------------------------------------------------------------
-
 class _DiskCache:
-    """Pickle-on-disk cache for equilibrator compound and reaction lookups.
-
-    Caches both hits AND misses (None values) to avoid expensive re-queries
-    for compounds not in the CC database.
-    """
+    """Pickle-on-disk cache for equilibrator lookups. Caches compound hits and misses."""
 
     def __init__(self, root: Path = _DEFAULT_CACHE_DIR):
         self.root = Path(root)
@@ -184,26 +130,8 @@ class _DiskCache:
         except Exception as e:
             logger.warning("Thermo cache write failed (%s): %s", p, e)
 
-
-# ---------------------------------------------------------------------------
-# ThermoEngine
-# ---------------------------------------------------------------------------
-
 class ThermoEngine:
-    """Compute ΔG°' / Keq / kcat_rev for reactions via equilibrator-api.
-
-    One instance per simulation run (binds pH / ionic strength / pMg / T).
-    The ComponentContribution object is loaded lazily on first use.
-
-    Compound resolution: SMILES → InChI → cc.get_compound_by_inchi()
-    (exact match, most reliable). Falls back to InChIKey prefix search
-    if the exact InChI lookup misses.
-
-    Usage::
-
-        engine = ThermoEngine(pH=7.4, ionic_strength_M=0.25, pMg=3.0, T_K=310.15)
-        engine.attach_to_reactions(all_reactions)
-    """
+    """Compute ΔG°′ / Keq for reactions via equilibrator-api. One instance per run."""
 
     def __init__(
         self,
@@ -223,15 +151,11 @@ class ThermoEngine:
         self.cache = cache or _DiskCache()
         self._cc = None
         self._cc_load_failed = False
-        # CompoundSubstitutor applied before equilibrator resolution.
-        # None means pass-through (no substitution). Concrete implementations
-        # live in bees.substitutor_registry; the enlarger injects one at init.
+        # None = pass-through; enlarger injects a CompoundSubstitutor at init.
         self.substitutor: Optional[CompoundSubstitutor] = substitutor
 
-    # -- equilibrator setup ---------------------------------------------------
-
     def _load_cc(self):
-        """load ComponentContribution, set env conditions and return it."""
+        """Load ComponentContribution and set environmental conditions."""
         if self._cc is not None or self._cc_load_failed:
             return self._cc
         try:
@@ -264,10 +188,8 @@ class ThermoEngine:
             return None
         return self._cc
 
-    # -- compound resolution --------------------------------------------------
-
     def _resolve_compound(self, smiles: Optional[str]):
-        """SMILES → equilibrator Compound object, with disk cache. Returns None on miss."""
+        """SMILES → equilibrator Compound. Returns None on miss."""
         cc = self._load_cc()
         if cc is None:
             return None
@@ -282,25 +204,17 @@ class ThermoEngine:
         if not cache_key:
             return None
 
-        # Only cache MISSES on disk. Caching the Compound object itself breaks
-        # because equilibrator-cache's Compound is bound to a SQLAlchemy
-        # session — pickling detaches it and any subsequent attribute access
-        # raises DetachedInstanceError. Negative caching is enough to skip
-        # repeat live lookups for things CC doesn't know.
+        # Do not pickle Compound objects (SQLAlchemy DetachedInstanceError); cache misses only.
         cached = self.cache.get("compound", cache_key, default=...)
         if cached is None:
             return None  # cached miss
 
         cpd = None
         try:
-            # Primary: exact InChI match (most reliable per docs)
             if inchi:
                 cpd = cc.get_compound_by_inchi(inchi)
 
-            # Fallback A: InChIKey prefix search (first 14 chars = connectivity
-            # block; ignores stereochemistry and protonation state). This often
-            # rescues lookups for biochemicals where our SMILES has explicit
-            # stereo/protonation but CC indexes the canonical form.
+            # InChIKey 14-char prefix fallback (connectivity; ignores stereo/protonation).
             if cpd is None and ikey:
                 ikey_prefix = ikey.split("-")[0]  # first 14-char block
                 matches = cc.search_compound_by_inchi_key(ikey_prefix)
@@ -308,8 +222,6 @@ class ThermoEngine:
                     if len(matches) == 1:
                         cpd = matches[0]
                     else:
-                        # Multiple hits (stereoisomers etc.) — try exact key
-                        # first, otherwise pick the first as a best-effort.
                         for m in matches:
                             if getattr(m, "inchi_key", None) == ikey:
                                 cpd = m
@@ -323,7 +235,6 @@ class ThermoEngine:
                                 getattr(cpd, "inchi_key", "?"),
                             )
 
-            # Fallback B: try CC's own SMILES resolver.
             if cpd is None:
                 try:
                     cpd = cc.get_compound(canon)
@@ -341,23 +252,14 @@ class ThermoEngine:
             )
         return cpd
 
-    # -- reaction ΔG°' computation -------------------------------------------
-
     def _compute_dgr_prime(
         self,
         stoichiometry: Dict[str, int],
         smiles_map: Dict[str, str],
     ) -> Tuple[Optional[float], Optional[float]]:
-        """Build equilibrator Reaction and return (ΔG°' # kJ/mol, σ # kJ/mol).
+        """Build equilibrator Reaction and return (ΔG°′ kJ/mol, σ kJ/mol), or (None, None).
 
-        Returns (None, None) on any failure.
-
-        importent note on H+ and H2O:
-        - H+ is handled internally by equilibrator via the pH-transformed
-          potential. Do NOT strip it — include it in the stoichiometry so
-          that is_balanced() works correctly.
-        - H2O must also be included for balance checks.
-        - equilibrator accounts for both when computing ΔG°'.
+        H+ and H2O must stay in the stoichiometry (needed for is_balanced(); equilibrator accounts for both).
         """
         cc = self._cc
         if cc is None:
@@ -380,8 +282,7 @@ class ThermoEngine:
                 )
             effective_smi_map[label] = effective_smi
 
-        # Carrier swaps (e.g. holo-ACP + malonyl-CoA → malonyl-ACP + CoA) collapse to a null
-        # reaction under substitution; short-circuit before equilibrator to avoid fallback noise.
+        # Carrier swaps collapse to a null reaction under substitution; short-circuit before equilibrator.
         smiles_coeffs: Dict[str, float] = {}
         all_have_smiles = True
         for label, coeff in stoichiometry.items():
@@ -406,24 +307,18 @@ class ThermoEngine:
             compound_map[label] = cpd
 
         try:
-            # Accumulate coefficients per eQuilibrator compound so that
-            # labels that resolve to the same compound (e.g. malonyl-[ACP]
-            # and Malonyl-CoA both → id=42) are summed rather than
-            # silently overwritten by Python dict construction.
+            # Accumulate coeffs per CC compound (don't overwrite when labels resolve to the same id).
             accumulated: Dict[object, float] = {}
             for lab, coeff in stoichiometry.items():
                 cpd = compound_map[lab]
                 accumulated[cpd] = accumulated.get(cpd, 0) + coeff
-            # Drop participants that cancel exactly (net coeff = 0). These
-            # are spectators that appear on both sides due to the CoA
-            # substitution (e.g. CoA + malonyl-CoA → malonyl-CoA + CoA).
+            # Drop net-zero spectators from CoA substitution.
             accumulated = {cpd: c for cpd, c in accumulated.items() if c != 0}
             if not accumulated:
                 return 0.0, 0.0
             rxn = Reaction(accumulated)
 
-            # Always check balance before computing — unbalanced reactions
-            # return garbage ΔG°' with no warning from equilibrator.
+            # Check balance before computing — unbalanced reactions return garbage ΔG°' with no warning.
             if not rxn.is_balanced():
                 logger.warning(
                     "Reaction is not balanced (atoms/charge); skipping ΔG°' computation. "
@@ -449,12 +344,7 @@ class ThermoEngine:
         stoichiometry: Dict[str, int],
         smiles_map: Dict[str, str],
     ) -> ThermoData:
-        """Compute ΔG°' and Keq for one reaction.
-
-        Returns ThermoData with keq and irreversible flag set.
-        kcat_rev is always None — caller applies haldane_kcat_rev() separately
-        once product Kms are known.
-        """
+        """Compute ΔG°′ and Keq. kcat_rev is always None; irreversibility is decided by the rule layer."""
         if _is_disabled():
             return _disabled_thermo()
 
@@ -462,7 +352,6 @@ class ThermoEngine:
         if cc is None:
             return _fallback_thermo("equilibrator unavailable")
 
-        # Build canonical cache key from SMILES + env conditions.
         canonical_pairs = sorted(
             ((canonical_smiles(smiles_map.get(lab)) or lab, c)
              for lab, c in stoichiometry.items()),
@@ -478,10 +367,7 @@ class ThermoEngine:
             result = cached
         else:
             result = self._compute_dgr_prime(stoichiometry, smiles_map)
-            # Only cache successful hits. Reaction misses depend on the active
-            # CompoundSubstitutor (whose output isn't part of the cache key),
-            # so persisting them traps subsequent runs that have a better
-            # substitutor on the original fallback.
+            # Cache reaction hits only (substitutor is not in the key; caching misses would trap later runs).
             if result is not None and result != (None, None):
                 self.cache.set("reaction", rxn_key, result)
 
@@ -507,10 +393,7 @@ class ThermoEngine:
         except OverflowError:
             keq = float("inf")
 
-        # Irreversibility is decided by the rule layer
-        # (bees.rules.physics_rules.DgrIrreversibility), which applies both
-        # the |ΔG°'| > 30 kJ/mol cutoff and the Keq sanity check. compute_keq
-        # returns raw thermo with `irreversible=False`; the rule mutates it post-hoc
+        # Irreversibility is rule-layer; compute_keq returns irreversible=False.
         td = ThermoData(
             dgr_prime_kJmol=float(dgr),
             sigma_kJmol=float(sigma) if sigma is not None else float("nan"),
@@ -530,18 +413,7 @@ class ThermoEngine:
         reactions,
         global_smiles_map: Optional[Dict[str, str]] = None,
     ) -> None:
-        """Populate `.thermo` on every GeneratedReaction in the list.
-
-        Skips reactions whose template is not flagged reversible
-
-        `global_smiles_map` is an optional per-run label→SMILES map (typically
-        built from user input species/enzymes) used as a fallback when a
-        reaction's `kinetics.compound_smiles` lacks an entry for some
-        participant. This is needed because DB rows often only carry SMILES
-        for the substrates queried, not all participants.
-
-        Idempotent: calling multiple times refreshes the data.
-        """
+        """Legacy/test path: populate `.thermo` on each reaction."""
         global_smiles_map = global_smiles_map or {}
         global_smiles_lc = {
             (k.lower().strip()): v for k, v in global_smiles_map.items() if v
@@ -588,21 +460,12 @@ class ThermoEngine:
             ]
             _km_complete = not _missing_km_labels
 
-            # NOTE: the CO2-decarboxylation irreversibility override that used
-            # to live here has moved to the rule layer
-            # (bees.rules.physics_rules.DecarboxylationIrreversible). This
-            # engine method (attach_to_reactions) is the legacy, test-only path;
-            # production uses reaction_generator._attach_raw_thermo_eagerly plus
-            # RULES.apply_all. The block below is retained only so the legacy
-            # path keeps producing thermo for its tests.
+            # attach_to_reactions is the legacy/test path; production uses _attach_raw_thermo_eagerly + RULES.apply_all.
             td = self.compute_keq(stoichiometry=stoich, smiles_map=smiles_map)
 
             if not td.irreversible and kcat_fwd is not None and kcat_fwd > 0:
                 if not _km_complete:
-                    # Haldane requires Km for every stoichiometric species on
-                    # both sides to remain dimensionally consistent (Keq is at
-                    # 1 M standard state; missing Kms leave un-cancelled c°
-                    # factors that distort kcat_rev by orders of magnitude).
+                    # Haldane needs Km on both sides (missing Kms leave un-cancelled c° factors).
                     _dg = td.dgr_prime_kJmol
                     _near_eq = _dg is not None and abs(_dg) <= 5.0
                     logger.debug(

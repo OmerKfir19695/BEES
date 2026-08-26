@@ -105,11 +105,6 @@ def heavy_atom_count(smiles: Optional[str]) -> Optional[int]:
         return None
 
 
-def _normalize_compound_label(label: str) -> str:
-    """Normalize compound label for comparison."""
-    return str(label).lower().strip().replace("-", " ").replace("_", " ")
-
-
 def load_chemical_ontology(ontology_path: Optional[str] = None) -> Dict[str, List[str]]:
     """Load and invert chemical ontology from YAML (material -> [categories])."""
     global _CHEMICAL_ONTOLOGY

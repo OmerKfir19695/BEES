@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 
-"""
-ODE Simulator Module
---------------------
-Integrates the reaction network over time using scipy's ODE solvers.
+"""ODE simulator: scipy solve_ivp with a vectorized RHS.
 
-All concentrations are in mM, time in seconds, rates in mM/s.
+Concentrations mM, time s, rates mM/s.
 """
 
 from dataclasses import dataclass, field
@@ -26,12 +23,9 @@ from bees.flux_calculator import (
 )
 from bees.conservator import Conservator
 
-
 @dataclass
 class SimulationResult:
-    """
-    ODE simulation output.
-    """
+    """ODE simulation output."""
     t: np.ndarray
     y: np.ndarray
     species_labels: List[str]
@@ -43,20 +37,11 @@ class SimulationResult:
     simulation_interrupted: bool = False
     interrupt_char_rate: float = 0.0
     interrupt_edge_rates: Dict[str, float] = field(default_factory=dict)
-    # reaction-level dynamics metric (dlnaccum) per edge reaction.
-    # Keyed by reaction signature ((reactants_sorted_tuple, products_sorted_tuple)).
-    # max_edge_reaction_dlnaccum is the maximum dlnaccum_j seen during the run.
+    # Signature must match exporter.reaction_signature (includes enzyme).
     max_edge_reaction_dlnaccum: Dict[Tuple, float] = field(default_factory=dict)
 
-
 class _VectorizedRHS:
-    """
-    Pre-compiled, NumPy-vectorized ODE right-hand side for a fixed reaction network.
-
-    Builds all matrices and index arrays once at construction time so that
-    each call to ``__call__(t, y)`` runs without any Python-level loops or
-    dict lookups.
-    """
+    """NumPy-vectorized ODE RHS compiled once (no per-call Python loops)."""
 
     def __init__(
         self,
@@ -72,10 +57,6 @@ class _VectorizedRHS:
         n_rx = len(reactions)
         label_to_idx = {lab.lower().strip(): i for i, lab in enumerate(species_labels)}
 
-        # ---- Per-reaction Vmax ----------------------------------------
-        # Two overlay paths keep the vectorized fast-path clean:
-        #   1. Reversible MM: compute_reversible_mm_rate 
-        #   2. Product-inhibited irreversible MM: compute_mm_rate with Liebermeister & Klipp eq
         vmax = np.zeros(n_rx, dtype=np.float64)
         reversible_indices: List[int] = []
         product_inhibited_indices: List[int] = []
@@ -88,11 +69,9 @@ class _VectorizedRHS:
             if is_reversible:
                 reversible_indices.append(j)
                 continue
-            # Product-inhibited overlay: irreversible reactions with complete
-            # explicit product Kms use compute_mm_rate (Liebermeister denominator).
             if has_complete_explicit_product_kms(rxn):
                 product_inhibited_indices.append(j)
-                continue  # leave vmax[j] = 0
+                continue  # leave vmax[j] = 0 so the overlay owns this column
             kin = rxn.kinetics
             if kin is None or rxn.rate_law is None:
                 continue
@@ -103,9 +82,6 @@ class _VectorizedRHS:
             elif kin.vmax is not None:
                 vmax[j] = kin.vmax
 
-        # ---- Saturation substrate lists (ragged -> matrix) -------------
-        # For each reaction we store a list of (species_idx, km_value) pairs.
-        # We pack these into matrices (n_rx, K) where K is max substrates.
         sub_idx_list: List[List[int]] = []
         km_list:      List[List[float]] = []
         nu_list:      List[List[float]] = []
@@ -149,8 +125,7 @@ class _VectorizedRHS:
             nu_list.append(pairs_nu)
 
         K = max((len(idxs) for idxs in sub_idx_list), default=0)
-        # Pad with dummy index pointing to a constant 1.0 concentration.
-        # Padded ν = 0 so (s/(Km+s))**0 = 1 contributes neutrally.
+        # Pad dummy conc 1.0 so (s/(Km+s))**0 = 1.
         self._sub_idx_mat = np.full((n_rx, K), fill_value=n_sp, dtype=np.int32)
         self._km_mat = np.zeros((n_rx, K), dtype=np.float64)
         self._nu_mat = np.zeros((n_rx, K), dtype=np.float64)
@@ -161,16 +136,12 @@ class _VectorizedRHS:
                 self._km_mat[j, :nj] = kms
                 self._nu_mat[j, :nj] = nus
 
-        # ---- Feedback / end-product inhibition (opt-in) ----------------
-        # For reactions carrying rxn.feedback_inhibitors ({label_lc: (Ki, hill)}),
-        # the final rate is multiplied by ∏_k 1/(1+([I_k]/Ki)^hill). Inhibitor
-        # species are resolved to indices here; missing species are skipped.
         fb_idx_list: List[List[int]] = []
         fb_ki_list:  List[List[float]] = []
         fb_h_list:   List[List[float]] = []
         for rxn in reactions:
             inh = getattr(rxn, "feedback_inhibitors", None)
-            if not isinstance(inh, dict):  # None, or a MagicMock in tests
+            if not isinstance(inh, dict):  # None, or MagicMock in tests
                 inh = {}
             pi: List[int] = []
             pk: List[float] = []
@@ -194,7 +165,7 @@ class _VectorizedRHS:
 
         M = max((len(p) for p in fb_idx_list), default=0)
         self._has_feedback = M > 0 and any(fb_idx_list)
-        # Pad: sentinel idx -> appended 1.0; Ki = inf so (1.0/inf)^h = 0 -> factor 1.
+        # Feedback pad Ki=inf so (1.0/inf)^h = 0 -> factor 1.
         self._fb_idx_mat = np.full((n_rx, M), fill_value=n_sp, dtype=np.int32)
         self._fb_ki_mat = np.full((n_rx, M), fill_value=np.inf, dtype=np.float64)
         self._fb_hill_mat = np.ones((n_rx, M), dtype=np.float64)
@@ -205,7 +176,6 @@ class _VectorizedRHS:
                 self._fb_ki_mat[j, :nj] = kis
                 self._fb_hill_mat[j, :nj] = hs
 
-        # ---- Stoichiometry matrix S  (n_species x n_reactions) ---------
         rows, cols, data = [], [], []
         for j, rxn in enumerate(reactions):
             for sp_label, coeff in rxn.stoichiometry.items():
@@ -218,7 +188,6 @@ class _VectorizedRHS:
                     data.append(float(coeff))
         S = csc_matrix((data, (rows, cols)), shape=(n_sp, n_rx), dtype=np.float64)
 
-        # Store as dense if small, sparse otherwise
         if n_rx <= 200:
             self._S = S.toarray()
             self._sparse = False
@@ -248,12 +217,7 @@ class _VectorizedRHS:
         self.label_to_idx = label_to_idx
         self.alias_to_model_label = alias_to_model_label
 
-        # Edge isolation (RMG-style):
-        #   - edge SPECIES rows are forced to zero in the residual so their
-        #     concentrations never drift from the initial value;
-        #   - edge REACTION fluxes are zeroed before S @ v so they cannot
-        #     contribute to core species' dC/dt either.
-        # When n_core_* are omitted we treat everything as core (legacy).
+        # Edge isolation: species rows 0, reaction fluxes zeroed; omit n_core = all core.
         self._n_core_species = n_sp if n_core_species is None else int(n_core_species)
         self._n_core_reactions = n_rx if n_core_reactions is None else int(n_core_reactions)
         self._edge_species_mask = np.zeros(n_sp, dtype=bool)
@@ -273,26 +237,17 @@ class _VectorizedRHS:
         return self.compute_dydt(y)
 
     def compute_v(self, y: np.ndarray) -> np.ndarray:
-        """
-        Compute reaction rate vector v(y).
-        Supports y as (n_species,) or (n_species, n_timepoints).
-
-        Mass-conservation note: the raw state y is passed unclipped through to
-        the stoichiometry matrix so that S @ v preserves every conserved moiety
-        analytically. 
-        """
+        """Compute rate vector v(y). Accepts (n_species,) or (n_species, n_timepoints)."""
         is_mat = (y.ndim > 1)
 
-        # Append dummy 1.0 for out-of-bounds substrate indices (padding sentinel).
-        # Use raw y — DO NOT clip here; clipping breaks the mass-balance of S @ v.
+        # NEVER clip y globally (breaks S@v mass balance). Dummy 1.0 is the pad sentinel.
         if is_mat:
             ones = np.ones((1, y.shape[1]), dtype=y.dtype)
             y_ext = np.vstack([y, ones])
         else:
             y_ext = np.append(y, 1.0)
 
-        # Saturation: s / (Km + s), clipped to [0, 1] to keep rates non-negative.
-        # Clip only inside the saturation formula — not globally on y.
+        # Clip only inside saturation so rates stay non-negative.
         s = y_ext[self._sub_idx_mat]
         s_pos = np.maximum(s, 0.0)
 
@@ -300,13 +255,12 @@ class _VectorizedRHS:
             km = self._km_mat[:, :, np.newaxis]
             nu = self._nu_mat[:, :, np.newaxis]
             sat = s_pos / (km + s_pos)
-            # product over K dimension (axis 1), with stoichiometric exponents
             v = self._vmax[:, np.newaxis] * np.prod(sat ** nu, axis=1)
         else:
             sat = s_pos / (self._km_mat + s_pos)
             v = self._vmax * np.prod(sat ** self._nu_mat, axis=1)
 
-        # Pass raw (possibly negative) concentrations; overlay functions apply max(c, 0.0) themselves.
+        # Overlays apply max(c, 0) themselves.
         _need_overlay = self._reversible_indices or self._product_inhibited_indices
         if _need_overlay and not is_mat:
             conc = {
@@ -314,7 +268,6 @@ class _VectorizedRHS:
                 for i, lab in enumerate(self._species_labels)
             }
 
-        # Overlay 1: reversible MM (may return negative v for reverse flux).
         if self._reversible_indices:
             if is_mat:
                 n_t = y.shape[1]
@@ -331,7 +284,6 @@ class _VectorizedRHS:
                 for col, rxn in zip(self._reversible_indices, self._reversible_reactions):
                     v[col] = compute_reversible_mm_rate(rxn, conc, self._enzyme_conc_map)
 
-        # Overlay 2: product-inhibited irreversible MM (forward-only).
         if self._product_inhibited_indices:
             if is_mat:
                 n_t = y.shape[1]
@@ -346,17 +298,14 @@ class _VectorizedRHS:
                 for col, rxn in zip(self._product_inhibited_indices, self._product_inhibited_reactions):
                     v[col] = compute_mm_rate(rxn, conc, self._enzyme_conc_map)
 
-        # Overlay 3: feedback / end-product inhibition (opt-in, multiplicative).
-        # v[j] *= ∏_k 1/(1+([I_k]/Ki)^hill). Neutral (factor 1) for reactions
-        # without a spec (padding uses Ki=inf -> term 1).
         if self._has_feedback:
             if is_mat:
-                c = np.maximum(y_ext[self._fb_idx_mat], 0.0)        # (n_rx, M, n_t)
+                c = np.maximum(y_ext[self._fb_idx_mat], 0.0)
                 ki = self._fb_ki_mat[:, :, np.newaxis]
                 hill = self._fb_hill_mat[:, :, np.newaxis]
                 factor = np.prod(1.0 / (1.0 + (c / ki) ** hill), axis=1)
             else:
-                c = np.maximum(y_ext[self._fb_idx_mat], 0.0)        # (n_rx, M)
+                c = np.maximum(y_ext[self._fb_idx_mat], 0.0)
                 factor = np.prod(
                     1.0 / (1.0 + (c / self._fb_ki_mat) ** self._fb_hill_mat), axis=1
                 )
@@ -365,18 +314,10 @@ class _VectorizedRHS:
         return v
 
     def compute_dydt(self, y: np.ndarray) -> np.ndarray:
-        """Compute dydt = S @ v(y) for the integrator (edges isolated).
-
-        Edge-reaction fluxes are zeroed before the stoichiometric multiply so
-        they cannot drain or feed core species, and edge-species rows are
-        zeroed afterwards so their concentrations stay at the initial value.
-        For the un-masked rate vector used by promotion scoring, call
-        :meth:`compute_dydt_unmasked`.
-        """
+        """dydt = S @ v(y) with edge isolation for the integrator."""
         v = self.compute_v(y)
         if self._n_core_reactions < self._n_rx:
-            # Zero edge reactions on a copy so compute_v's result stays intact
-            # for any caller that wants the raw rate vector.
+            # Zero edge reactions on a COPY so compute_v's result stays intact.
             v = v.copy()
             if v.ndim == 1:
                 v[self._n_core_reactions:] = 0.0
@@ -398,13 +339,7 @@ class _VectorizedRHS:
         return dydt
 
     def compute_dydt_unmasked(self, y: np.ndarray) -> np.ndarray:
-        """Compute dydt = S @ v(y) WITHOUT edge isolation.
-
-        Used by promotion-scoring code paths that need the would-be dC/dt of
-        edge species and the would-be contribution of edge reactions. The
-        constant_mask is still applied (enzymes / buffers should always read
-        as flat regardless of which path computes the residual).
-        """
+        """dydt = S @ v(y) without edge isolation. Constant-mask still applied."""
         v = self.compute_v(y)
         if self._sparse:
             dydt = self._S.dot(v)
@@ -439,7 +374,6 @@ class _VectorizedRHS:
             p = self._S_prod @ v
             c = self._S_cons @ v
         return p, c
-
 
 class ODESimulator:
     """Integrate the biochemical reaction network for a CoreEdgeModel."""
@@ -505,10 +439,6 @@ class ODESimulator:
             rtol=rtol,
             atol=atol,
         )
-
-    # ------------------------------------------------------------------
-    # Continuous (non-interrupt) simulation path
-    # ------------------------------------------------------------------
 
     def _simulate_continuous(
         self,
@@ -605,10 +535,6 @@ class ODESimulator:
                 )
         return result
 
-    # ------------------------------------------------------------------
-    # Simulation with flux-ratio interrupt
-    # ------------------------------------------------------------------
-
     def _simulate_stepwise(
         self,
         end_time: float,
@@ -652,10 +578,7 @@ class ODESimulator:
         )
         conservator = Conservator(species_labels)
 
-        # ---- Edge-reaction setup for dlnaccum---
-        # products separately to look up consumption/production at each step.
-        # Signature must match `bees.exporter.reaction_signature`:
-        # (enzyme_lc, reactants_sorted_tuple, products_sorted_tuple).
+        # dlnaccum signature must match exporter.reaction_signature (includes enzyme).
         edge_rxn_sigs: List[Tuple[str, Tuple[str, ...], Tuple[str, ...]]] = []
         edge_rxn_reactant_idx: List[List[int]] = []
         edge_rxn_product_idx: List[List[int]] = []
@@ -672,8 +595,6 @@ class ODESimulator:
                     idx = label_to_idx.get(lc)
                 if idx is None:
                     continue
-                # Stoichiometric multiplicity: 
-                # reactant/product *index lists* (a coefficient of 2 contributes twice).
                 mult = int(round(abs(float(coeff))))
                 if mult <= 0:
                     mult = 1
@@ -724,9 +645,6 @@ class ODESimulator:
 
         current_t = 0.0
         current_y = y0.copy()
-        # Outer-step size bounds. A floor avoids spending wall time on 1e-12 s
-        # segments when max_rr sits below interrupt_tol (no interrupt possible
-        # yet) but old backoff logic kept shrinking dt.
         dt_max = 5.0
         if end_time > 0.0:
             dt_floor_outer = max(1e-12, min(1e-6, end_time * 1e-8))
@@ -798,22 +716,12 @@ class ODESimulator:
                         f"{invalid_message}"
                     )
                 break
-            # Do NOT clip current_y here. Clipping mid-integration breaks
-            # conservation: when BDF temporarily places a species at a tiny
-            # negative value (numerical roundoff), `np.maximum(y, 0)` adds
-            # that negative mass back as positive without subtracting it
-            # from any conjugate species. With small initial pools,
-            # this compounds across many outer steps
-            # and many species into massive drift.
+            # Do NOT clip current_y mid-integration (BDF conservation drift).
 
             t_history.append(current_t)
             y_history.append(conservator.clip(current_y).copy())
 
-            # Enlarger uses the UNMASKED residual for both R_char and edge
-            # rates. The isolated residual is for the integrator only. With
-            # the bootstrap (core empty, all edges) the isolated R_char is
-            # zero and the rate-ratio interrupt could never fire; unmasked
-            # gives the right signal for promotion. See _attach_flux_metrics.
+            # Enlarger uses UNMASKED residual (bootstrap: isolated R_char=0).
             dydt_unmasked_step = rhs.compute_dydt_unmasked(current_y)
             char_rate = float(np.linalg.norm(dydt_unmasked_step[:n_core]))
             if edge_labels_lc_list:
@@ -829,16 +737,11 @@ class ODESimulator:
             if char_rate > 0.0 and edge_rates:
                 max_rr = max((abs(r) / char_rate for r in edge_rates.values()), default=0.0)
 
-            # ---- reaction-level dlnaccum---
-            # dlnaccum_j = Σ_i ln(1 + v_j / R_i) over species i touched by edge
-            # reaction j; R_i is consumption (L_i) for reactants, production
-            # (P_i) for products. Tracks per-step max over the run.
             max_rxn_dlnaccum_step = 0.0
             max_rxn_dlnaccum_sig: Optional[Tuple] = None
             if edge_rxn_sigs:
                 v_all = rhs.compute_v(current_y)
                 prod_all, cons_all = rhs.compute_prod_cons(current_y)
-                # prod_all/cons_all are species production/consumption magnitudes.
                 for k, sig in enumerate(edge_rxn_sigs):
                     j_global = edge_rxn_global_idx[k]
                     v_j = float(v_all[j_global])
@@ -893,8 +796,6 @@ class ODESimulator:
                     )
                 break
 
-            # Reaction-level interrupt: if any edge reaction's dlnaccum exceeds
-            # the threshold, halt and record candidates for promotion.
             if (
                 not first_step
                 and tol_move_edge_reaction_to_core is not None
@@ -915,10 +816,7 @@ class ODESimulator:
 
             first_step = False
 
-            # Outer-step adaptation (no shrink while max_rr <= tol):
-            # Interrupt fires only when max_rr > interrupt_simulation_tol. If
-            # max_rr is below tol, shrinking dt cannot create an interrupt; it
-            # only traps the integrator at dt_min. 
+            # Do not shrink dt while max_rr <= tol.
             dt = max(dt, dt_floor_outer)
             if max_rr >= near_frac * interrupt_simulation_tol:
                 pass
@@ -953,7 +851,6 @@ class ODESimulator:
             self.model.set_all_concentrations(
                 conservator.clip(current_y).tolist()
             )
-        # Trajectory-based max/final R_char and max_edge_rate_ratio; interrupt_* stay unclipped.
         self._attach_flux_metrics(result, rhs=rhs)
 
         if interrupted:
@@ -966,15 +863,9 @@ class ODESimulator:
                     f"({len(t_history)} time points)"
                 )
 
-        # Always expose the lifetime-max dlnaccum so the enlarger can promote
-        # reactions discovered above tolerance even on a non-interrupted pass.
         result.max_edge_reaction_dlnaccum = max_edge_rxn_dlnaccum
 
         return result
-
-    # ------------------------------------------------------------------
-    # ODE export
-    # ------------------------------------------------------------------
 
     def export_ode_equations(
         self,
@@ -1008,7 +899,6 @@ class ODESimulator:
         )
         lines.append("")
 
-        # --- Reaction rate laws ---
         lines.append("-" * 80)
         lines.append("Reactions (rate laws with parameters)")
         lines.append("-" * 80)
@@ -1036,14 +926,11 @@ class ODESimulator:
                 km_per = getattr(kin, "km_per_substrate", None) or {}
                 km_single = kin.km
 
-                # Buffered species (H+, H2O, enzymes) are omitted: activities baked into K'eq; keeps equations consistent with SBML.
+                # Buffered species omitted (activities in Keq; matches SBML).
                 def _is_buffered(lab: str) -> bool:
                     return constant_mask.get(lab.lower().strip(), False)
 
                 if _is_rev:
-                    # Reversible MM (Liebermeister & Klipp 2006), kinetic form:
-                    # v = (kcat_fwd * [E] * prod([S]/Km_s) - kcat_rev * [E] * prod([P]/Km_p))
-                    #     / (prod(1+[S]/Km_s) + prod(1+[P]/Km_p) - 1)
                     sub_terms = []
                     for r in rxn.reactant_labels:
                         if _is_buffered(r):
@@ -1138,7 +1025,6 @@ class ODESimulator:
                 if lc in label_to_idx and lc in species_terms:
                     species_terms[lc].append((coeff, r_idx))
 
-        # --- ODEs for each species ---
         lines.append("-" * 80)
         lines.append("ODEs (dC/dt for each species)")
         lines.append("-" * 80)
@@ -1175,15 +1061,8 @@ class ODESimulator:
 
         return output_path
 
-    # ------------------------------------------------------------------
-    #  Flux trajectory metrics
-    # ------------------------------------------------------------------
-
     def _attach_flux_metrics(self, sim_result: SimulationResult, rhs: _VectorizedRHS) -> None:
-        """
-        Populate max_char_rate, final_char_rate, and max_edge_rate_ratio by
-        scanning the stored trajectory using vectorized RHS.
-        """
+        """Populate max_char_rate, final_char_rate, and max_edge_rate_ratio from the trajectory."""
         if not sim_result.success or sim_result.y.size == 0:
             sim_result.max_char_rate = 0.0
             sim_result.final_char_rate = 0.0
@@ -1194,14 +1073,7 @@ class ODESimulator:
         n_edge = len(self.model.edge_species)
         edge_labels = [sp.label.lower().strip() for sp in self.model.edge_species]
 
-        # Promotion scoring uses the UNMASKED residual end-to-end. Reason:
-        # the enlarger bootstraps from zero core reactions — all reactions
-        # start as edges and get promoted by flux. If we measured R_char from
-        # the isolated residual, it would be identically zero while the core
-        # is empty, the rate ratio `edge_rate / R_char` would never fire, and
-        # the enlarger would converge trivially on iteration 1. The unmasked
-        # residual answers the right question for promotion: "what WOULD the
-        # dynamics be if these edges were core?"
+        # Enlarger uses UNMASKED residual (bootstrap: isolated R_char=0).
         dydt_unmasked = rhs.compute_dydt_unmasked(sim_result.y)
         dydt_core_mat = dydt_unmasked[:n_core, :]
         char_rates = np.linalg.norm(dydt_core_mat, axis=0)
@@ -1220,11 +1092,7 @@ class ODESimulator:
                 edge_labels[i]: float(max_ratios[i]) for i in range(n_edge)
             }
         else:
-            sim_result.max_edge_rate_ratio = {}
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
+            sim_result.max_edge_rate_ratio = {            }
 
     def _build_alias_to_model_label(
         self,

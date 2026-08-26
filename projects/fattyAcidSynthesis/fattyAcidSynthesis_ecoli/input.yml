@@ -1,9 +1,9 @@
 project: fattyAcidSynthesis_ecoli
 project_directory: projects/fattyAcidSynthesis/fattyAcidSynthesis_ecoli
 
-# E. coli FAS II production input. Calibrations: fabA_isomerization_branch_ratio,
-# fabI_enoyl_reductase_measured_kcat, tesa_long_chain_preference
-# Feedback ( FabH Ki=8 uM (Ruppe S5)+ FabI Ki=20 uM (Bergler 1996)
+# E. coli FAS II production input. Calibrations: fabI_enoyl_reductase_measured_kcat,
+# tesa_long_chain_preference.
+# Feedback: FabH Ki=21 uM (CatPred C16 sat free acid); FabI Ki=20 uM (Bergler 1996)
 
 species:
   - label: NADPH
@@ -112,7 +112,7 @@ enzymes:
         - octadecanoate
         - (11z)-octadecenoate
         - (13z)-icosenoate
-      ki: 0.008
+      ki: 0.021
       hill: 1.0
 
   - label: FabI
@@ -166,7 +166,6 @@ settings:
   kinetics_estimator: catpred
   kinetics_include_sd: True
   calibrations:
-    - fabA_isomerization_branch_ratio
     - fabI_enoyl_reductase_measured_kcat
     - tesa_long_chain_preference
   verbose: 20

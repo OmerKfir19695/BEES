@@ -170,14 +170,6 @@ settings:
   ## save_simulation_plots: save time-series plots (if enabled by the pipeline)
   save_simulation_plots: true
 
-  ## save_reaction_tree_plots: save reaction tree visualization(s)
-  save_reaction_tree_plots: false
-  ## reaction_tree_layout: 'graphviz' or 'simple' layout engine
-  reaction_tree_layout: graphviz
-  ## reaction_tree_rankdir: graph direction ('TB', 'BT', 'LR', 'RL')
-  reaction_tree_rankdir: TB
-  ## reaction_tree_fontsize: font size (8..24)
-  reaction_tree_fontsize: 8
 
   ## plot_max_species: optional cap for number of species shown in plots; null = no cap
   plot_max_species: null

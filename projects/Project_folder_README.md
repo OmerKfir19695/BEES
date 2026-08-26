@@ -51,8 +51,6 @@ For iterative mode (when `end_time` and `toleranceMoveToCore > 0`):
 9. `core_reactions_species.csv` / `edge_reactions_species.csv` - final core and edge reaction tables
 10. `model.xml` - SBML Level 3 export for COPASI / any SBML tool (requires `python-libsbml`)
 11. `simulation_plot_iterN.png` - concentration vs time plots per iteration (if `save_simulation_plots: true`)
-12. `reaction_tree_iterN.png` - reaction network graph per iteration (if `save_reaction_tree_plots: true`)
-13. `reaction_tree_labels.csv` - cumulative short-label ↔ full-label mapping used in reaction tree plots
 
 ---
 
