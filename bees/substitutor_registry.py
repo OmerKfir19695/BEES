@@ -13,7 +13,7 @@ To add a new substitutor for a different pathway or carrier system:
 from typing import Dict, Optional
 
 from bees.thermodynamics import CompoundSubstitutor
-from bees.cofactors import COA_TAIL, ACYL_CHAIN_SMILES, ACYL_FREE_ACID_SMILES
+from bees.cofactors import ACP_SUFFIX, COA_TAIL, ACYL_CHAIN_SMILES, ACYL_FREE_ACID_SMILES
 
 import logging
 logger = logging.getLogger("BEES")
@@ -48,8 +48,6 @@ class AcylACPSubstitutor(CompoundSubstitutor):
     `thermo_smiles_substitutions`. Takes precedence over the built-in tables.
     """
 
-    _ACP_SUFFIX = "-[acp]"
-
     def __init__(self, extra_mappings: Optional[Dict[str, str]] = None):
         self._extra: Dict[str, str] = {
             k.lower().strip(): v
@@ -62,10 +60,10 @@ class AcylACPSubstitutor(CompoundSubstitutor):
         if label_lc in self._extra:
             return self._extra[label_lc]
 
-        if not label_lc.endswith(self._ACP_SUFFIX):
+        if not label_lc.endswith(ACP_SUFFIX):
             return None
 
-        acyl = label_lc[: -len(self._ACP_SUFFIX)]
+        acyl = label_lc[: -len(ACP_SUFFIX)]
 
         # holo-[ACP] (the bare carrier) → free CoA, so the ACP-side scaffold
         # matches the full acyl-CoA we substitute on the other side. Without

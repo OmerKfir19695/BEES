@@ -96,6 +96,13 @@ COA_TAIL = (
     "OC[C@H]1O[C@H]([C@H](O)[C@@H]1OP(=O)(O)O)n1cnc2c(N)ncnc12"
 )
 
+# Truncated 4'-phosphopantetheine handle for ACP-thioester *database* SMILES
+# (no adenine-ribose-ADP). Not the same as COA_TAIL, which is for eQuilibrator.
+# ACP proxy in the CSV = ACYL_CHAIN_SMILES[acyl] + PPANT_HANDLE.
+# No-op for non-ACP networks (labels that do not end with ACP_SUFFIX).
+PPANT_HANDLE = "SCCNC(=O)CCNC(=O)[C@H](O)C(C)(C)COP(=O)(O)O"
+ACP_SUFFIX = "-[acp]"
+
 # Acyl chain SMILES fragments (ending in C(=O)) keyed by lowercase acyl group name.
 # Concatenate with COA_TAIL to get the full CoA-thioester SMILES for eQuilibrator.
 ACYL_CHAIN_SMILES: Dict[str, str] = {

@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 
-"""Local CSV reaction database (load + query by EC / substrate).
-
-Rationale: knowledge/functions/REACTION_DATABASE.md
-"""
+"""Local CSV reaction database (load + query by EC / substrate)."""
 
 import os
 import csv
@@ -12,15 +9,16 @@ from typing import Dict, List, Optional, Any, Tuple, Set, Union
 from dataclasses import dataclass
 from bees.logger import Logger
 from bees.common import get_ontology_equivalents, canonical_smiles, get_chemical_aliases
-from bees.cofactors import GENERAL_COFACTORS, ACYL_CHAIN_SMILES
-
-# ACP proxy SMILES = ACYL_CHAIN_SMILES[acyl] + _PPANT_HANDLE (see REACTION_DATABASE.md).
-_PPANT_HANDLE = "SCCNC(=O)CCNC(=O)[C@H](O)C(C)(C)COP(=O)(O)O"
-_ACP_SUFFIX_LC = "-[acp]"
+from bees.cofactors import (
+    ACYL_CHAIN_SMILES,
+    ACP_SUFFIX,
+    GENERAL_COFACTORS,
+    PPANT_HANDLE,
+)
 
 @dataclass
 class KineticData:
-    """One reaction row from the CSV. Units: mM, kJ/mol, K. See REACTION_DATABASE.md."""
+    """One reaction row from the CSV. Units: mM, kJ/mol, K."""
     
     ec_number: str
     enzyme_name: str
@@ -46,9 +44,8 @@ class KineticData:
         return (f"KineticData(ec={self.ec_number}, reaction={self.reaction_string}, "
                 f"Km={self.km} mM, ΔG={self.delta_g} kJ/mol)")
 
-
 class ReactionDatabase:
-    """Load/query enzyme reactions from CSV. See REACTION_DATABASE.md."""
+    """Load/query enzyme reactions from CSV."""
     
     def __init__(self, logger: Logger, ontology: Optional[Dict[str, List[str]]] = None):
         if not isinstance(logger, Logger):
@@ -65,7 +62,7 @@ class ReactionDatabase:
         self.ontology = ontology or {}
     
     def load_from_csv(self, csv_path: str) -> int:
-        """Load reactions from CSV; return count. See REACTION_DATABASE.md."""
+        """Load reactions from CSV; return count."""
         if not os.path.exists(csv_path):
             raise FileNotFoundError(f"Reaction database file not found: {csv_path}")
         
@@ -179,17 +176,21 @@ class ReactionDatabase:
         self,
         compound_smiles: Optional[Dict[str, str]],
     ) -> Optional[Dict[str, str]]:
-        """Rebuild ACP-thioester SMILES from ACYL_CHAIN_SMILES. See REACTION_DATABASE.md."""
+        """Rebuild ACP-thioester SMILES from ACYL_CHAIN_SMILES + PPANT_HANDLE.
+
+        ACP-pathway identity fix (FAS-II style labels). No-op unless the
+        compound name ends with ACP_SUFFIX and the acyl prefix is in the table.
+        """
         if not compound_smiles:
             return compound_smiles
         corrected: Dict[str, str] = {}
         for name, smi in compound_smiles.items():
             name_lc = name.lower().strip()
-            if name_lc.endswith(_ACP_SUFFIX_LC):
-                acyl = name_lc[: -len(_ACP_SUFFIX_LC)]
+            if name_lc.endswith(ACP_SUFFIX):
+                acyl = name_lc[: -len(ACP_SUFFIX)]
                 chain = ACYL_CHAIN_SMILES.get(acyl)
                 if chain is not None:
-                    corrected[name] = chain + _PPANT_HANDLE
+                    corrected[name] = chain + PPANT_HANDLE
                     continue
             corrected[name] = smi
         return corrected
@@ -201,7 +202,7 @@ class ReactionDatabase:
         fallback_blob: Optional[str],
         row_index: int,
     ) -> Optional[Dict[str, int]]:
-        """Parse stoichiometry from column / meta / legacy blob. See REACTION_DATABASE.md."""
+        """Parse stoichiometry from column / meta / legacy blob."""
         candidates: List[Any] = []
         if stoich_raw:
             candidates.append(self._parse_json_blob(stoich_raw) or stoich_raw)
@@ -243,7 +244,7 @@ class ReactionDatabase:
         return_all: bool = False,
         substrate_smiles: Optional[str] = None,
     ) -> Union[Optional[KineticData], List[KineticData]]:
-        """Query by EC + substrate (SMILES then name/ontology). See REACTION_DATABASE.md."""
+        """Query by EC + substrate (SMILES then name/ontology)."""
         self.logger.debug(f"Querying database: EC={ec_number}, Substrate={substrate_label}, "
                          f"Cofactor={cofactor}, TempRange={temperature_range}, pHRange={ph_range}")
 
@@ -440,7 +441,7 @@ class ReactionDatabase:
         return matches
     
     def query_by_substrate(self, substrate_label: str) -> List[KineticData]:
-        """All reactions with substrate as reactant (ontology aliases). See REACTION_DATABASE.md."""
+        """All reactions with substrate as reactant (ontology aliases)."""
         substrate_label = substrate_label.strip()
         
         # Get all aliases for this substrate (including chemical class categories)
