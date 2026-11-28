@@ -7,7 +7,8 @@ Source data (not included; download it yourself, see the BKMS-react license):
 
 Data files shipped with this script:
   data/compound_smiles.csv        compound name -> SMILES lookup (frozen, see REBUILD_INSTRUCTIONS.md)
-  data/curated_fas_reactions.csv  56 hand-curated fatty-acid-synthesis reactions
+  data/curated_fas_reactions.csv  archived: 56 hand-curated FAS rows used only in BEES v1.0.0
+                                  (opt in with --include-curated-fas; not in the default build)
 
 Steps:
   1. Read the BKMS reaction table (tab-separated, inside the tar.gz).
@@ -15,11 +16,11 @@ Steps:
   3. Turn each equation into a stoichiometry: reactants negative, products positive,
      a leading integer is a coefficient ("2 NADPH"), species on both sides cancel.
   4. Attach SMILES for every species found in the lookup table.
-  5. Append the curated FAS reactions.
-  6. Write db.csv and compare its SHA-256 with the released file.
+  5. Write db.csv (BKMS-only by default).
 
 Usage:
   python build_db_csv.py --bkms Reactions_BKMS.tar.gz --out db.csv
+  python build_db_csv.py --bkms Reactions_BKMS.tar.gz --out db.csv --include-curated-fas  # v1.0.0
 """
 
 from __future__ import annotations
@@ -39,8 +40,8 @@ HERE = Path(__file__).resolve().parent
 SMILES_TABLE = HERE / "data" / "compound_smiles.csv"
 CURATED_TABLE = HERE / "data" / "curated_fas_reactions.csv"
 
-# SHA-256 of db/db.csv in BEES v1.0.0 (paper version).
-RELEASED_SHA256 = "4ab531f56d2528e50fa9e735c0b052e86ce17a611c592f108635167fb481586e"
+# SHA-256 of db/db.csv in BEES v1.0.0 (paper tag; BKMS + 56 curated FAS).
+V1_0_0_SHA256 = "4ab531f56d2528e50fa9e735c0b052e86ce17a611c592f108635167fb481586e"
 
 COLUMNS = ["index", "enzyme", "ec_number", "reaction", "stoichiometry", "meta", "compound_smiles"]
 
@@ -141,12 +142,17 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Build BEES db.csv from BKMS-react.")
     ap.add_argument("--bkms", type=Path, required=True, help="Reactions_BKMS.tar.gz (or the extracted .csv)")
     ap.add_argument("--out", type=Path, default=Path("db.csv"))
+    ap.add_argument(
+        "--include-curated-fas",
+        action="store_true",
+        help="Append archived data/curated_fas_reactions.csv (BEES v1.0.0 only; not the default)",
+    )
     args = ap.parse_args()
 
     bkms = read_bkms(args.bkms)
     smiles = load_smiles(SMILES_TABLE)
     rows = [r for r in (bkms_to_db_row(b, smiles) for b in bkms) if r is not None]
-    curated = load_curated(CURATED_TABLE)
+    curated = load_curated(CURATED_TABLE) if args.include_curated_fas else []
 
     buffer = io.StringIO(newline="")
     writer = csv.DictWriter(buffer, fieldnames=COLUMNS, lineterminator="\n")
@@ -158,10 +164,17 @@ def main() -> None:
     digest = hashlib.sha256(data).hexdigest()
     print(f"BKMS reactions read:     {len(bkms)}")
     print(f"BKMS reactions kept:     {len(rows)}")
-    print(f"Curated FAS reactions:   {len(curated)}")
+    print(f"Curated FAS reactions:   {len(curated)}" + (" (opt-in)" if curated else " (skipped; default)"))
     print(f"Wrote {args.out} ({len(rows) + len(curated)} rows)")
     print(f"SHA-256 {digest}")
-    print("Identical to BEES v1.0.0 db.csv" if digest == RELEASED_SHA256 else "DIFFERS from BEES v1.0.0 db.csv")
+    if args.include_curated_fas:
+        print(
+            "Identical to BEES v1.0.0 db.csv"
+            if digest == V1_0_0_SHA256
+            else "DIFFERS from BEES v1.0.0 db.csv"
+        )
+    else:
+        print("BKMS-only build (default). Use --include-curated-fas to match BEES v1.0.0.")
 
 
 if __name__ == "__main__":

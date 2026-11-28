@@ -6,8 +6,9 @@ released db/db.csv and writes:
 
   data/compound_smiles.csv        one row per compound name in the BKMS rows that has
                                   a SMILES: name, smiles, source
-  data/curated_fas_reactions.csv  the 56 rows that are not from BKMS (hand-curated
-                                  fatty-acid-synthesis reactions), copied verbatim
+  data/curated_fas_reactions.csv  archived: the 56 rows that are not from BKMS
+                                  (hand-curated FAS); opt-in via --include-curated-fas
+                                  in build_db_csv.py; not in the default build
 
 `source` is "pubchem" when the SMILES equals the first PubChem name lookup
 (compounds_with_smiles.csv, 2026-02-08), "manual" for the carbon monoxide fix of

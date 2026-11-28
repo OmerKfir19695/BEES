@@ -96,7 +96,7 @@ The two database files are generated and not stored in git (they are gitignored)
 
 | File | Content | Raw input (not shipped) | Full instructions |
 |---|---|---|---|
-| `db/db.csv` | general reaction database, 37,175 rows (BKMS-react reactions with an EC number, plus 56 curated FAS reactions) | BKMS-react 2023.1, `Reactions_BKMS.tar.gz` | [db_csv/REBUILD_INSTRUCTIONS.md](db/db_build/db_csv/REBUILD_INSTRUCTIONS.md) |
+| `db/db.csv` | general reaction database, 37,119 rows (BKMS-react reactions with an EC number; BKMS-only by default) | BKMS-react 2023.1, `Reactions_BKMS.tar.gz` | [db_csv/REBUILD_INSTRUCTIONS.md](db/db_build/db_csv/REBUILD_INSTRUCTIONS.md) |
 | `db/ecoli.csv` | *E. coli* K-12 reaction database, 2,327 rows | UniProt UP000000625, 2026-04-20 snapshot | [ecoli_csv/REBUILD_INSTRUCTIONS.md](db/db_build/ecoli_csv/REBUILD_INSTRUCTIONS.md) |
 
 Short version (download the raw input first, as described in each instruction file):
